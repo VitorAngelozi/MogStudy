@@ -10,7 +10,11 @@
     <h1>Login</h1>
     <form action="/loginsubmit" method="post">
         @csrf
-        <label for="text_email">E-mail</label>
+         <input type="email" name="email"><br><br>
+        <label>Senha</label><br>
+        <input type="password" name="password"><br><br>
+        <button type="submit">Entrar</button>
+    </form>
     
 </body>
 </html>
