@@ -7,10 +7,7 @@
     <title>Document</title>
 </head>
 <body>
-    <h1>Login</h1>
-    <form action="/loginsubmit" method="post">
-        @csrf
-        <label for="text_email">E-mail</label>
+    <h1>Logout</h1>
     
 </body>
-</html>
+</html>s
