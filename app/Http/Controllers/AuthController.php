@@ -12,8 +12,9 @@ class AuthController extends Controller
 
     public function loginsubmit(Request $request){
 
+
         //form validation
-        $request->validade(
+        $request->validate(
             [
                 'email' => 'required',
                 'password' => 'required'
@@ -21,9 +22,13 @@ class AuthController extends Controller
             ]
         );
 
-       echo $request->input('email');
-       echo "<br>";
-       echo $request->input('password');
+        //get user input
+        $email = $request->input('email');
+        $password = $request->input('password');
+
+        echo $email;
+        echo "<br>";
+        echo $password;
     }
 
     public function logout(){
