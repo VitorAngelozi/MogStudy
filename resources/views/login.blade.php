@@ -16,5 +16,13 @@
         <button type="submit">Entrar</button>
     </form>
     
+    {{-- errors --}}
+    @if($errors->any())
+        <h1>
+            @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+            @endforeach
+        </h1>
+    @endif
 </body>
 </html>
