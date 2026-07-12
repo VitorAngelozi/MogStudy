@@ -23,9 +23,9 @@ class AuthController extends Controller
             ],
             // error messages
             [
-                'email.required'=> 'The email address is mandatory.'
-                'password.required'=> 'The password is mandatory.'
-                'password.min'=> 'The password requires at least 6 caracters'
+                'email.required'=> 'The email address is mandatory.',
+                'password.required'=> 'The password is mandatory.',
+                'password.min'=> 'The password requires at least 6 caracters',
                 'password.max'=> 'The password maximum caracters is 16.'
 
 
