@@ -10,19 +10,17 @@
     <h1>Login</h1>
     <form action="/loginsubmit" method="post">
         @csrf
-         <input type="email" name="email"><br><br>
+         <input type="email" name="email" value="{{old('email')}}" ><br><br>
+         @error('email')
+            <h1>{{ $message }}</h1>
+         @enderror
         <label>Senha</label><br>
         <input type="password" name="password"><br><br>
+        @error('password')
+            <h1>{{ $message }}</h1>
+         @enderror
         <button type="submit">Entrar</button>
     </form>
     
-    {{-- errors --}}
-    @if($errors->any())
-        <h1>
-            @foreach($errors->all() as $error)
-            <li>{{ $error }}</li>
-            @endforeach
-        </h1>
-    @endif
 </body>
 </html>
