@@ -46,7 +46,7 @@ class AuthController extends Controller
             ->first();
 
         if(!$login){
-            return redirect()->back()->withInput()->with('login error!', 'username or password incorrect');
+            return redirect()->back()->withInput()->with('loginError', 'username or password incorrect');
         }else{
             echo "Welcome: " . $email;
         }

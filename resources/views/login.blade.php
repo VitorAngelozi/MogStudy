@@ -20,6 +20,11 @@
             <h1>{{ $message }}</h1>
          @enderror
         <button type="submit">Entrar</button>
+
+        {{-- login error --}}
+        @if(session('loginError'))
+        <h2> {{session('loginError')}} </h2>
+        @endif
     </form>
     
 </body>
