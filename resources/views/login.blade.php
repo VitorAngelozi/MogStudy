@@ -25,6 +25,11 @@
         @if(session('loginError'))
         <h2> {{session('loginError')}} </h2>
         @endif
+
+        @if(session('passwordError'))
+        <h2> {{session('passwordError')}} </h2>
+        @endif
+
     </form>
     
 </body>
