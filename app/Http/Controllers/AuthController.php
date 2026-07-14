@@ -40,10 +40,13 @@ class AuthController extends Controller
         $password = $request->input('password');
 
         //get all the users from database
-        $users = User::all()->toArray();
+        $users = User::all();
+        foreach ($users as $user) {
+            echo "This is the user " . $user->username;
+            echo "<br>";
 
+        }
         echo "<br>";
-        echo $users;
 
         echo "<br>";
         echo $email;
