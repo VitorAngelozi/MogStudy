@@ -65,12 +65,19 @@ class AuthController extends Controller
                 'username'=>$login->username,
             ]
         ]);
-        echo 'LOGIN OK!';
+       
+       return redirect()->to('/home');
 
       
     }
 
-    public function logout(){
-        return view('logout');
+    public function home(){
+        return view('home');
     }
+    public function logout(Request $request)
+        {
+            session()->flush();
+
+             return redirect()->to('/login');
+        }
 }
