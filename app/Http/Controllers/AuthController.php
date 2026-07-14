@@ -39,18 +39,19 @@ class AuthController extends Controller
         $email = $request->input('email');
         $password = $request->input('password');
 
-        //get all the users from database
-        $users = User::all();
-        foreach ($users as $user) {
-            echo "This is the user " . $user->username;
-            echo "<br>";
+        //check if user exists
 
+        $login = User::where('email', $email)
+            ->where('deleted_at', NULL)
+            ->first();
+
+        if(!$login){
+            return redirect()->back()->withInput()->with('login error!', 'username or password incorrect');
+        }else{
+            echo "Welcome: " . $email;
         }
         echo "<br>";
-
-        echo "<br>";
         echo $email;
-        echo "<br>";
         echo $password;
     }
 
