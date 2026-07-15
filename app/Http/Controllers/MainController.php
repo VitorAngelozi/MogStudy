@@ -14,7 +14,14 @@ class MainController extends Controller
         ]);
     }
 
-    public function notepost(){
+    public function notepost(Request $request){
+        $notePost = $request->input('contentPost');
+
+        return view('/home', [
+
+            'notePost'=> $notePost,
+
+        ]);
     
     }
 }

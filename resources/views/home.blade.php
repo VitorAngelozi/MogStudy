@@ -16,11 +16,14 @@
         <form action="/notepost" method="POST">
             @csrf
 
-            <textarea name="content" placeholder="Write your note"></textarea>
+            <textarea name="postContent" placeholder="Write your note"></textarea>
             <button type="submit">Submit</button>
         
         </form>
-        
+
+        <h3>Your notes</h3>
+
+        <h4> {{$notePost}} </h4>
     <hr>
 
 
