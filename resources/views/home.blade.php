@@ -8,7 +8,10 @@
 </head>
 <body>
 
-     <form action="/logout" method="POST">
+    <h3>Hello {{$user['username']}} </h3>  
+    <h3>Email {{ $user['email'] }}</h3>
+
+    <form action="/logout" method="POST">
         @csrf
         <button type="submit">Logout</button>
     </form>

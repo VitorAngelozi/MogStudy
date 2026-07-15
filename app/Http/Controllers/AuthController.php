@@ -63,6 +63,7 @@ class AuthController extends Controller
             [
                 'id'=>$login->id,
                 'username'=>$login->username,
+                'email'=>$login->email,
             ]
         ]);
        
@@ -71,9 +72,6 @@ class AuthController extends Controller
       
     }
 
-    public function home(){
-        return view('home');
-    }
     public function logout(Request $request)
         {
             session()->flush();
