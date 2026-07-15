@@ -12,14 +12,24 @@
     <h3>Email: {{ $user['email'] }}</h3>
    
     <h4>write your note<h4>
+    <form action="/notepost" method="POST">
+        @csrf
 
-        <form action="/notepost" method="POST">
-            @csrf
+        <input
+            type="text"
+            name="title"
+            maxlength="50"
+            placeholder="Título da nota"
+        >
+        <br>
+        <textarea
+            name="text"
+            maxlength="3000"
+            placeholder="Escreva sua nota"
+        ></textarea>
 
-            <textarea name="notePost" placeholder="Write your note"></textarea>
-            <button type="submit">Submit</button>
-        
-        </form>
+        <button type="submit">Salvar nota</button>
+    </form>
 
         <h3>Your notes</h3>
 

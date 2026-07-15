@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Note;
 
 class MainController extends Controller
 {
@@ -15,14 +16,21 @@ class MainController extends Controller
     }
 
     public function notepost(Request $request){
-        $notePost = $request->input('contentPost');
 
-        return view('home', [
+        $request->validate([
+            'title' => ['required', 'string', 'max:50'],
+            'text' =>  ['required', 'string', 'max:3000'],
+        ]);
 
-            'notePost'=> $notePost,
+        Note::create([
+
+            'user_id' => auth()->id(),
+            'title' => $request->input('title'),
+            'text' => $request->input('text'),
 
         ]);
-    
+
+        return redirect('/home'); 
     }
 }
 
