@@ -7,5 +7,9 @@ use App\Http\Controllers\MainController;
 Route::get('/login', [AuthController::class, 'login']);
 Route::post('loginsubmit', [AuthController::class, 'loginsubmit']);
 
-Route::post('/logout', [AuthController::class, 'logout']);
-Route::get('/home', [MainController::class, 'home']);
+
+Route::middleware([CheckIsLogged:class])->group(function(){
+	Route::post('/logout', [AuthController::class, 'logout']);
+	Route::get('/home', [MainController::class, 'home']);
+	Route::get('/', [MainController::class, 'index']);
+};

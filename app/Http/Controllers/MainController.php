@@ -13,4 +13,13 @@ class MainController extends Controller
             'user' => $user,
         ]);
     }
+
+    public function index(){
+        echo "Im inside the app!"
+    }
+
+    public function note(){
+        echo "Im creating a new note!"
+    }
 }
+
