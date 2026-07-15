@@ -15,11 +15,11 @@ class MainController extends Controller
     }
 
     public function index(){
-        echo "Im inside the app!"
+        echo "Im inside the app!";
     }
 
     public function note(){
-        echo "Im creating a new note!"
+        echo "Im creating a new note!";
     }
 }
 
