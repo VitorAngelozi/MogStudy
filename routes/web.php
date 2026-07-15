@@ -17,6 +17,5 @@ Route::middleware([CheckIfNotLogged::class])->group(function(){
 Route::middleware([CheckIfLogged::class])->group(function(){
 	Route::post('/logout', [AuthController::class, 'logout']);
 	Route::get('/home', [MainController::class, 'home']);
-	Route::get('/', [MainController::class, 'index']);
-	Route::get('/', [MainController::class, '/']);
+	Route::post('/notepost', [MainController::class, 'notepost']);
 });

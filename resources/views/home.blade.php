@@ -8,8 +8,22 @@
 </head>
 <body>
 
-    <h3>Hello {{$user['username']}} </h3>  
-    <h3>Email {{ $user['email'] }}</h3>
+    <h3>Hello, {{$user['username']}} </h3>  
+    <h3>Email: {{ $user['email'] }}</h3>
+   
+    <h4>write your note<h4>
+
+        <form action="/notepost" method="POST">
+            @csrf
+
+            <textarea name="content" placeholder="Write your note"></textarea>
+            <button type="submit">Submit</button>
+        
+        </form>
+        
+    <hr>
+
+
 
     <form action="/logout" method="POST">
         @csrf
