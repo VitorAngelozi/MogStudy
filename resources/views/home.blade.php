@@ -34,7 +34,7 @@
         <h3>Your notes</h3>
 
         @if(isset($notePost))
-            <p>Sua nota: {{ $notePost }}</p>
+            <p>Sua nota: {{ $notes }}</p>
         @endif
     <hr>
 
