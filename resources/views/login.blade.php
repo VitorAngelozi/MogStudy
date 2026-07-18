@@ -1,36 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
-</head>
-<body>
-    <h1>Login</h1>
-    <form action="/loginsubmit" method="post">
-        @csrf
-         <input type="email" name="email" value="{{old('email')}}" ><br><br>
-         @error('email')
-            <h1>{{ $message }}</h1>
-         @enderror
-        <label>Senha</label><br>
-        <input type="password" name="password"><br><br>
-        @error('password')
-            <h1>{{ $message }}</h1>
-         @enderror
-        <button type="submit">Entrar</button>
+@extends('layouts.app')
 
-        {{-- login error --}}
-        @if(session('loginError'))
-        <h2> {{session('loginError')}} </h2>
-        @endif
+@section('content')
+    <section class="auth-shell">
+        <div class="auth-card">
+            <p class="eyebrow">Acesso</p>
+            <h1>Entrar no MogStudy</h1>
 
-        @if(session('passwordError'))
-        <h2> {{session('passwordError')}} </h2>
-        @endif
+            <form action="{{ route('login.attempt') }}" method="POST" class="form-stack">
+                @csrf
 
-    </form>
-    
-</body>
-</html>
+                <label>
+                    <span>E-mail</span>
+                    <input type="email" name="email" value="{{ old('email') }}" placeholder="voce@exemplo.com" required>
+                </label>
+
+                <label>
+                    <span>Senha</span>
+                    <input type="password" name="password" placeholder="Sua senha" required>
+                </label>
+
+                <button type="submit" class="primary-button full-width">Entrar</button>
+            </form>
+
+            <p class="auth-note">
+                Ainda não tem conta?
+                <a href="{{ route('register') }}">Criar uma conta</a>
+            </p>
+        </div>
+    </section>
+@endsection

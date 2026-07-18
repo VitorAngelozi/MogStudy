@@ -11,20 +11,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('notes', function (Blueprint $table) {
+        Schema::create('daily_logs', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
-            $table->string('title', 50);
-            $table->string('text', 3000);
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->date('log_date');
+            $table->string('title', 120);
+            $table->longText('content');
+            $table->unsignedInteger('study_minutes')->default(0);
             $table->timestamps();
+
+            $table->unique(['user_id', 'log_date']);
         });
     }
 
     /**
      * Reverse the migrations.
      */
-    public function down(): voids
+    public function down(): void
     {
-        Schema::dropIfExists('notes');
+        Schema::dropIfExists('daily_logs');
     }
 };
