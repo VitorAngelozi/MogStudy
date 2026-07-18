@@ -5,6 +5,7 @@ use App\Http\Controllers\DailyLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StudySessionController;
+use App\Http\Controllers\StudySubjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -29,6 +30,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/study-subjects', [StudySubjectController::class, 'store'])->name('study-subjects.store');
     Route::post('/study-sessions', [StudySessionController::class, 'store'])->name('study-sessions.store');
     Route::post('/study-sessions/{studySession}/stop', [StudySessionController::class, 'stop'])->name('study-sessions.stop');
     Route::post('/daily-logs', [DailyLogController::class, 'store'])->name('daily-logs.store');

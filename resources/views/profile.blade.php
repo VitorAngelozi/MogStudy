@@ -25,7 +25,7 @@
     </section>
 
     <section class="panel-grid">
-        @include('partials.contribution-grid', ['contributions' => $contributions])
+        @include('partials.contribution-grid', ['heatmap' => $heatmap])
 
         <div class="panel">
             <div class="section-heading">

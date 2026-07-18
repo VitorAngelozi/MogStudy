@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLog;
 use App\Models\User;
+use App\Support\ActivityHeatmap;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -22,13 +23,13 @@ class ProfileController extends Controller
             ->limit(8)
             ->get();
 
-        $contributions = $this->buildContributions($user->id);
+        $heatmap = app(ActivityHeatmap::class)->build($user->id);
 
         return view('profile', [
             'profileUser' => $user,
             'logs' => $logs,
             'sessions' => $sessions,
-            'contributions' => $contributions,
+            'heatmap' => $heatmap,
             'readme' => $user->readme_markdown ?: $user->defaultReadmeTemplate(),
             'streak' => $this->buildStreak($user->id),
         ]);
@@ -45,27 +46,6 @@ class ProfileController extends Controller
         ])->save();
 
         return redirect()->route('dashboard')->with('status', 'README atualizado com sucesso.');
-    }
-
-    private function buildContributions(int $userId): array
-    {
-        $map = [];
-
-        for ($offset = 41; $offset >= 0; $offset--) {
-            $date = now()->startOfDay()->subDays($offset);
-            $minutes = (int) DailyLog::query()
-                ->where('user_id', $userId)
-                ->whereDate('log_date', $date)
-                ->sum('study_minutes');
-
-            $map[] = [
-                'date' => $date->toDateString(),
-                'minutes' => $minutes,
-                'level' => $this->contributionLevel($minutes),
-            ];
-        }
-
-        return $map;
     }
 
     private function buildStreak(int $userId): int
@@ -92,14 +72,4 @@ class ProfileController extends Controller
         return $streak;
     }
 
-    private function contributionLevel(int $minutes): int
-    {
-        return match (true) {
-            $minutes >= 240 => 4,
-            $minutes >= 120 => 3,
-            $minutes >= 60 => 2,
-            $minutes > 0 => 1,
-            default => 0,
-        };
-    }
 }

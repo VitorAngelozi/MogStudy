@@ -12,6 +12,7 @@ class StudySession extends Model
 
     protected $fillable = [
         'user_id',
+        'study_subject_id',
         'subject',
         'notes',
         'started_at',
@@ -31,6 +32,11 @@ class StudySession extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function studySubject(): BelongsTo
+    {
+        return $this->belongsTo(StudySubject::class);
     }
 
     public function getDurationLabelAttribute(): string

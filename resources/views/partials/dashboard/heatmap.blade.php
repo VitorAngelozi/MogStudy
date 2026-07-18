@@ -1,31 +1,44 @@
 @php($months = $heatmap['months'] ?? [])
 @php($rows = $heatmap['rows'] ?? [])
-@php($cells = $heatmap['cells'] ?? [])
+@php($weeks = $heatmap['weeks'] ?? [])
+@php($weekCount = max(1, count($weeks)))
 
 <div class="heatmap-shell">
-    <div class="heatmap-months">
-        <span></span>
-        @foreach ($months as $month)
-            <span>{{ $month['label'] }}</span>
-        @endforeach
-    </div>
+    <div class="heatmap-scroll">
+        <div class="heatmap-calendar" style="--heatmap-weeks: {{ $weekCount }}">
+            <div class="heatmap-months" aria-hidden="true">
+                <span></span>
+                @foreach ($months as $month)
+                    <span title="{{ $month['date'] }}">{{ $month['label'] }}</span>
+                @endforeach
+            </div>
 
-    <div class="heatmap-body">
-        <div class="heatmap-rows">
-            @foreach ($rows as $row)
-                <span>{{ $row }}</span>
-            @endforeach
-        </div>
+            <div class="heatmap-body">
+                <div class="heatmap-rows" aria-hidden="true">
+                    @foreach ($rows as $row)
+                        <span>{{ $row }}</span>
+                    @endforeach
+                </div>
 
-        <div class="heatmap-grid" aria-label="Mapa de atividade">
-            @foreach ($cells as $cell)
-                <button
-                    type="button"
-                    class="heat-cell heat-level-{{ $cell['level'] }}"
-                    title="{{ $cell['date'] }} - {{ $cell['minutes'] }} min"
-                    aria-label="{{ $cell['date'] }} - {{ $cell['minutes'] }} minutos estudados"
-                ></button>
-            @endforeach
+                <div class="heatmap-grid" aria-label="Mapa de atividade dos últimos 365 dias">
+                    @foreach ($weeks as $week)
+                        <div class="heatmap-week">
+                            @foreach ($week['days'] as $day)
+                                @if ($day['is_empty'])
+                                    <span class="heat-cell heat-cell-empty" aria-hidden="true"></span>
+                                @else
+                                    <button
+                                        type="button"
+                                        class="heat-cell heat-level-{{ $day['level'] }}"
+                                        title="{{ $day['label'] }}"
+                                        aria-label="{{ $day['label'] }} estudados"
+                                    ></button>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 

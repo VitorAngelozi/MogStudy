@@ -91,10 +91,10 @@
                 <div class="section-heading">
                     <div>
                         <p class="eyebrow">Sua atividade</p>
-                        <h2>Contribuicoes dos ultimos 42 dias</h2>
+                        <h2>Contribuicoes no ultimo ano</h2>
                     </div>
 
-                    <button type="button" class="mini-button">Ultimos 6 meses</button>
+                    <button type="button" class="mini-button">Ultimos 365 dias</button>
                 </div>
 
                 @include('partials.dashboard.heatmap', ['heatmap' => $heatmap])
@@ -189,11 +189,28 @@
                             <h2>Foco atual</h2>
                         </div>
 
-                        <a href="#projetos" class="mini-link">Ver todas</a>
+                        <span class="mini-link">{{ $studySubjects->count() }} cadastrada{{ $studySubjects->count() === 1 ? '' : 's' }}</span>
                     </div>
 
+                    <form action="{{ route('study-subjects.store') }}" method="POST" class="subject-create-form">
+                        @csrf
+
+                        <label>
+                            <span>Nome da materia</span>
+                            <input
+                                type="text"
+                                name="name"
+                                value="{{ old('name') }}"
+                                placeholder="Laravel, Java, Banco de dados..."
+                                required
+                            >
+                        </label>
+
+                        <button type="submit" class="secondary-button">Criar materia</button>
+                    </form>
+
                     <div class="subject-list">
-                        @foreach ($subjects as $subject)
+                        @forelse ($subjects as $subject)
                             <article class="subject-row">
                                 <span class="subject-icon subject-icon-{{ $subject['tone'] }}">
                                     @include('partials.dashboard.icon', ['name' => $subject['icon'], 'class' => 'icon-svg'])
@@ -211,7 +228,12 @@
                                     </div>
                                 </div>
                             </article>
-                        @endforeach
+                        @empty
+                            <div class="empty-state">
+                                <strong>Nenhuma materia cadastrada ainda.</strong>
+                                <p>Crie uma materia para liberar o timer e acompanhar seu foco real.</p>
+                            </div>
+                        @endforelse
                     </div>
                 </article>
             </section>
@@ -320,21 +342,55 @@
                         </div>
                     @else
                         <p class="muted">Nenhuma sessao em andamento agora.</p>
-                        <form action="{{ route('study-sessions.store') }}" method="POST" class="quick-start-form">
-                            @csrf
+                        @if ($studySubjects->isNotEmpty())
+                            <form action="{{ route('study-sessions.store') }}" method="POST" class="quick-start-form">
+                                @csrf
 
-                            <label>
-                                <span>Nova sessao</span>
-                                <input type="text" name="subject" placeholder="Laravel, Java, Banco de dados..." required>
-                            </label>
+                                <label class="subject-combobox" data-subject-combobox>
+                                    <span>Materia</span>
+                                    <input
+                                        type="text"
+                                        name="study_subject_name"
+                                        value="{{ old('study_subject_name') }}"
+                                        placeholder="Digite para buscar..."
+                                        autocomplete="off"
+                                        required
+                                        data-subject-search
+                                    >
+                                    <input
+                                        type="hidden"
+                                        name="study_subject_id"
+                                        value="{{ old('study_subject_id') }}"
+                                        data-subject-id
+                                    >
+                                    <div class="subject-options" data-subject-options>
+                                        @foreach ($studySubjects as $subject)
+                                            <button
+                                                type="button"
+                                                class="subject-option"
+                                                data-subject-option
+                                                data-subject-id="{{ $subject->id }}"
+                                                data-subject-name="{{ $subject->name }}"
+                                            >
+                                                {{ $subject->name }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </label>
 
-                            <label>
-                                <span>Notas rapidas</span>
-                                <textarea name="notes" rows="3" placeholder="Objetivo da sessao"></textarea>
-                            </label>
+                                <label>
+                                    <span>Notas rapidas</span>
+                                    <textarea name="notes" rows="3" placeholder="Objetivo da sessao">{{ old('notes') }}</textarea>
+                                </label>
 
-                            <button type="submit" class="primary-button full-width">Comecar agora</button>
-                        </form>
+                                <button type="submit" class="primary-button full-width">Comecar agora</button>
+                            </form>
+                        @else
+                            <div class="empty-state">
+                                <strong>Crie uma materia primeiro.</strong>
+                                <p>Depois ela aparece aqui para iniciar o timer com autocomplete.</p>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </section>

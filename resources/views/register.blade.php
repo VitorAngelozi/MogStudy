@@ -11,7 +11,18 @@
 
                 <label>
                     <span>Username</span>
-                    <input type="text" name="username" value="{{ old('username') }}" placeholder="seuusername" required>
+                    <input
+                        type="text"
+                        name="username"
+                        value="{{ old('username') }}"
+                        placeholder="seuusername"
+                        required
+                        class="@error('username') is-invalid @enderror"
+                        aria-invalid="@error('username') true @else false @enderror"
+                    >
+                    @error('username')
+                        <small class="field-error" role="alert">{{ $message }}</small>
+                    @enderror
                 </label>
 
                 <label>

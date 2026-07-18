@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLog;
 use App\Models\User;
+use App\Support\ActivityHeatmap;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -35,6 +36,14 @@ class DashboardController extends Controller
             ->whereDate('log_date', $today)
             ->first();
 
+        $studySubjects = $user->studySubjects()
+            ->withSum([
+                'studySessions as duration_seconds_total' => fn ($query) => $query->whereNotNull('ended_at'),
+            ], 'duration_seconds')
+            ->get()
+            ->sortByDesc(fn ($subject) => (int) $subject->duration_seconds_total)
+            ->values();
+
         $totals = [
             'minutes_today' => (int) $user->studySessions()
                 ->whereDate('started_at', $today)
@@ -44,8 +53,8 @@ class DashboardController extends Controller
             'minutes_total' => (int) $user->studySessions()->sum('duration_seconds'),
         ];
 
-        $subjects = $this->buildSubjects($recentSessions, $recentLogs, $totals);
-        $heatmap = $this->buildHeatmap($user->id);
+        $subjects = $this->buildSubjects($studySubjects);
+        $heatmap = app(ActivityHeatmap::class)->build($user->id);
         $goal = $this->buildGoal($totals['minutes_today']);
         $profile = $this->buildProfileSummary($user, $totals);
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
@@ -56,7 +65,7 @@ class DashboardController extends Controller
 
         $timer = [
             'state' => $currentSession ? 'running' : 'idle',
-            'subject' => $currentSession?->subject ?: 'Laravel',
+            'subject' => $currentSession?->subject ?: 'Escolha uma materia',
             'started_at' => $currentSession?->started_at?->toIso8601String(),
             'elapsed_seconds' => $currentSession
                 ? $currentSession->started_at->diffInSeconds(now())
@@ -72,6 +81,7 @@ class DashboardController extends Controller
             'recentSessions' => $recentSessions,
             'recentLogs' => $recentLogs,
             'todayLog' => $todayLog,
+            'studySubjects' => $studySubjects,
             'profile' => $profile,
             'sidebarItems' => $sidebarItems,
             'timer' => $timer,
@@ -116,48 +126,6 @@ class DashboardController extends Controller
             'xp_percent' => min(100, (int) round(($xpCurrent / 500) * 100)),
             'readme_words' => str_word_count(strip_tags($user->readme_markdown ?: $user->defaultReadmeTemplate())),
         ];
-    }
-
-    private function buildHeatmap(int $userId): array
-    {
-        $cells = [];
-
-        for ($offset = 41; $offset >= 0; $offset--) {
-            $date = now()->startOfDay()->subDays($offset);
-            $minutes = (int) DailyLog::query()
-                ->where('user_id', $userId)
-                ->whereDate('log_date', $date)
-                ->sum('study_minutes');
-
-            $cells[] = [
-                'date' => $date->toDateString(),
-                'month' => $date->format('M'),
-                'minutes' => $minutes,
-                'level' => $this->contributionLevel($minutes),
-            ];
-        }
-
-        return [
-            'rows' => ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'],
-            'months' => $this->buildHeatmapMonths($cells),
-            'cells' => $cells,
-        ];
-    }
-
-    private function buildHeatmapMonths(array $cells): array
-    {
-        return collect($cells)
-            ->chunk(7)
-            ->map(function ($week) {
-                $date = Carbon::parse($week->first()['date']);
-
-                return [
-                    'label' => $this->shortMonthLabel($date),
-                    'date' => $date->toDateString(),
-                ];
-            })
-            ->values()
-            ->all();
     }
 
     private function buildGoal(int $minutesToday): array
@@ -228,54 +196,27 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildSubjects($recentSessions, $recentLogs, array $totals): array
+    private function buildSubjects($studySubjects): array
     {
-        $seed = max(1, (int) floor($totals['minutes_total'] / 60));
-        $firstSubject = $recentSessions->first()?->subject ?: 'Laravel';
-        $lastTopic = $recentLogs->first()?->title ?: 'Banco de dados';
+        $maxSeconds = max(1, (int) $studySubjects->max('duration_seconds_total'));
+        $tones = ['violet', 'cyan', 'amber', 'emerald', 'indigo'];
+        $icons = ['book', 'code', 'database', 'language', 'target'];
 
-        return [
-            [
-                'name' => $firstSubject,
-                'minutes' => 324 + ($seed * 3),
-                'hours_label' => $this->formatHoursCount(324 + ($seed * 3)),
-                'progress' => 75,
-                'tone' => 'violet',
-                'icon' => 'laravel',
-            ],
-            [
-                'name' => 'Java',
-                'minutes' => 210 + ($seed * 2),
-                'hours_label' => $this->formatHoursCount(210 + ($seed * 2)),
-                'progress' => 60,
-                'tone' => 'cyan',
-                'icon' => 'java',
-            ],
-            [
-                'name' => 'Banco de Dados',
-                'minutes' => 180 + $seed,
-                'hours_label' => $this->formatHoursCount(180 + $seed),
-                'progress' => 45,
-                'tone' => 'amber',
-                'icon' => 'database',
-            ],
-            [
-                'name' => $lastTopic,
-                'minutes' => 140 + $seed,
-                'hours_label' => $this->formatHoursCount(140 + $seed),
-                'progress' => 40,
-                'tone' => 'emerald',
-                'icon' => 'code',
-            ],
-            [
-                'name' => 'Ingles',
-                'minutes' => 98 + $seed,
-                'hours_label' => $this->formatHoursCount(98 + $seed),
-                'progress' => 30,
-                'tone' => 'indigo',
-                'icon' => 'language',
-            ],
-        ];
+        return $studySubjects
+            ->map(function ($subject, int $index) use ($maxSeconds, $tones, $icons) {
+                $seconds = (int) ($subject->duration_seconds_total ?? 0);
+
+                return [
+                    'name' => $subject->name,
+                    'description' => $subject->description,
+                    'seconds' => $seconds,
+                    'hours_label' => $this->formatStudySecondsAsHours($seconds),
+                    'progress' => $seconds > 0 ? (int) round(($seconds / $maxSeconds) * 100) : 0,
+                    'tone' => $tones[$index % count($tones)],
+                    'icon' => $icons[$index % count($icons)],
+                ];
+            })
+            ->all();
     }
 
     private function buildRecentActivity(User $user, $recentSessions, $recentLogs): array
@@ -392,17 +333,6 @@ class DashboardController extends Controller
         return $streak;
     }
 
-    private function contributionLevel(int $minutes): int
-    {
-        return match (true) {
-            $minutes >= 240 => 4,
-            $minutes >= 120 => 3,
-            $minutes >= 60 => 2,
-            $minutes > 0 => 1,
-            default => 0,
-        };
-    }
-
     private function avatarFromName(string $name): string
     {
         return Str::upper(Str::substr($name, 0, 1));
@@ -424,9 +354,15 @@ class DashboardController extends Controller
         return $hours.'h'.$remaining;
     }
 
-    private function formatHoursCount(int $minutes): string
+    private function formatStudySecondsAsHours(int $seconds): string
     {
-        return intdiv($minutes, 60).'h estudadas';
+        $minutes = intdiv($seconds, 60);
+
+        if ($seconds > 0 && $minutes === 0) {
+            $minutes = 1;
+        }
+
+        return $this->formatMinutesAsHours($minutes).' estudadas';
     }
 
     private function formatTimer(int $seconds): string
@@ -434,21 +370,4 @@ class DashboardController extends Controller
         return gmdate('H:i:s', max(0, $seconds));
     }
 
-    private function shortMonthLabel(Carbon $date): string
-    {
-        return match ((int) $date->format('n')) {
-            1 => 'Jan',
-            2 => 'Fev',
-            3 => 'Mar',
-            4 => 'Abr',
-            5 => 'Mai',
-            6 => 'Jun',
-            7 => 'Jul',
-            8 => 'Ago',
-            9 => 'Set',
-            10 => 'Out',
-            11 => 'Nov',
-            default => 'Dez',
-        };
-    }
 }

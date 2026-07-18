@@ -48,6 +48,11 @@ class User extends Authenticatable
         return $this->hasMany(StudySession::class);
     }
 
+    public function studySubjects(): HasMany
+    {
+        return $this->hasMany(StudySubject::class);
+    }
+
     public function dailyLogs(): HasMany
     {
         return $this->hasMany(DailyLog::class);

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\DailyLog;
 use App\Models\StudySession;
+use App\Models\StudySubject;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -38,8 +39,21 @@ class DatabaseSeeder extends Seeder
             'readme_markdown' => "# João\n\nDois blocos de estudo por dia, sem desculpas.",
         ]);
 
+        $laravel = StudySubject::create([
+            'user_id' => $vitor->id,
+            'name' => 'Laravel',
+            'description' => 'Backend, autenticacao e rotas.',
+        ]);
+
+        $arquitetura = StudySubject::create([
+            'user_id' => $vitor->id,
+            'name' => 'Arquitetura',
+            'description' => 'Organizacao do projeto MogStudy.',
+        ]);
+
         StudySession::create([
             'user_id' => $vitor->id,
+            'study_subject_id' => $laravel->id,
             'subject' => 'Laravel',
             'notes' => 'Estudo sobre autenticação e rotas.',
             'started_at' => now()->subDays(1)->setTime(19, 0),
@@ -49,6 +63,7 @@ class DatabaseSeeder extends Seeder
 
         StudySession::create([
             'user_id' => $vitor->id,
+            'study_subject_id' => $arquitetura->id,
             'subject' => 'Arquitetura',
             'notes' => 'Organização do projeto MogStudy.',
             'started_at' => now()->subDay()->setTime(21, 0),
