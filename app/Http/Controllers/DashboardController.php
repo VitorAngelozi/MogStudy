@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DailyLog;
 use App\Models\User;
 use App\Support\ActivityHeatmap;
+use App\Support\StudySubjectCards;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -40,39 +41,64 @@ class DashboardController extends Controller
             ->withSum([
                 'studySessions as duration_seconds_total' => fn ($query) => $query->whereNotNull('ended_at'),
             ], 'duration_seconds')
+            ->withSum([
+                'studySessions as duration_seconds_today' => fn ($query) => $query
+                    ->whereNotNull('ended_at')
+                    ->whereDate('started_at', $today),
+            ], 'duration_seconds')
+            ->withSum([
+                'studySessions as duration_seconds_week' => fn ($query) => $query
+                    ->whereNotNull('ended_at')
+                    ->whereBetween('started_at', [
+                        now()->startOfWeek()->toDateTimeString(),
+                        now()->endOfWeek()->toDateTimeString(),
+                    ]),
+            ], 'duration_seconds')
+            ->withMax([
+                'studySessions as last_studied_at' => fn ($query) => $query->whereNotNull('ended_at'),
+            ], 'started_at')
             ->get()
-            ->sortByDesc(fn ($subject) => (int) $subject->duration_seconds_total)
             ->values();
 
         $totals = [
-            'minutes_today' => (int) $user->studySessions()
+            'seconds_today' => (int) $user->studySessions()
+                ->whereNotNull('ended_at')
                 ->whereDate('started_at', $today)
+                ->sum('duration_seconds'),
+            'seconds_total' => (int) $user->studySessions()
+                ->whereNotNull('ended_at')
                 ->sum('duration_seconds'),
             'sessions_total' => $user->studySessions()->count(),
             'logs_total' => $user->dailyLogs()->count(),
-            'minutes_total' => (int) $user->studySessions()->sum('duration_seconds'),
         ];
 
-        $subjects = $this->buildSubjects($studySubjects);
+        $subjectCards = app(StudySubjectCards::class);
+        $subjects = $subjectCards->build($subjectCards->sortByRecentActivity($studySubjects)->take(3));
         $heatmap = app(ActivityHeatmap::class)->build($user->id);
-        $goal = $this->buildGoal($totals['minutes_today']);
+        $goal = $this->buildGoal($totals['seconds_today']);
         $profile = $this->buildProfileSummary($user, $totals);
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
         $achievements = $this->buildAchievements($recentLogs);
         $friends = $this->buildFriends();
         $sidebarItems = $this->buildSidebarItems($user);
-        $metrics = $this->buildMetrics($totals, count($subjects));
+        $metrics = $this->buildMetrics($totals, $studySubjects->count());
+        $currentSessionBaseSeconds = $currentSession
+            ? $this->finishedSecondsTodayForCurrentSubject($user, $currentSession, $today)
+            : 0;
+        $currentSessionLiveSeconds = $currentSession
+            ? $currentSession->started_at->diffInSeconds(now())
+            : 0;
+        $timerElapsedSeconds = $currentSession
+            ? $currentSessionBaseSeconds + $currentSessionLiveSeconds
+            : $totals['seconds_today'];
 
         $timer = [
             'state' => $currentSession ? 'running' : 'idle',
-            'subject' => $currentSession?->subject ?: 'Escolha uma materia',
+            'subject' => $currentSession?->subject ?: 'Total estudado hoje',
             'started_at' => $currentSession?->started_at?->toIso8601String(),
-            'elapsed_seconds' => $currentSession
-                ? $currentSession->started_at->diffInSeconds(now())
-                : 5143,
-            'display' => $currentSession
-                ? $this->formatTimer($currentSession->started_at->diffInSeconds(now()))
-                : '01:25:43',
+            'base_seconds' => $currentSessionBaseSeconds,
+            'elapsed_seconds' => $timerElapsedSeconds,
+            'display' => $this->formatTimer($timerElapsedSeconds),
         ];
 
         return view('dashboard', [
@@ -97,12 +123,14 @@ class DashboardController extends Controller
                 ? 'Pronto para continuar a sessao em andamento?'
                 : 'Pronto para mais uma sessao de foco?',
             'totals' => [
-                'minutes_today' => $totals['minutes_today'],
-                'minutes_total' => $totals['minutes_total'],
+                'minutes_today' => intdiv($totals['seconds_today'], 60),
+                'minutes_total' => intdiv($totals['seconds_total'], 60),
+                'seconds_today' => $totals['seconds_today'],
+                'seconds_total' => $totals['seconds_total'],
                 'sessions_total' => $totals['sessions_total'],
                 'logs_total' => $totals['logs_total'],
-                'hours_total_label' => $this->formatMinutesAsHours($totals['minutes_total']),
-                'today_label' => $this->formatMinutesAsHours($totals['minutes_today']),
+                'hours_total_label' => $this->formatSecondsAsHours($totals['seconds_total']),
+                'today_label' => $this->formatSecondsAsHours($totals['seconds_today']),
             ],
             'metrics' => $metrics,
         ]);
@@ -110,7 +138,7 @@ class DashboardController extends Controller
 
     private function buildProfileSummary(User $user, array $totals): array
     {
-        $experience = ($totals['minutes_total'] * 8) + ($totals['sessions_total'] * 35) + ($totals['logs_total'] * 25);
+        $experience = (intdiv($totals['seconds_total'], 60) * 8) + ($totals['sessions_total'] * 35) + ($totals['logs_total'] * 25);
         $level = max(1, intdiv($experience, 500) + 1);
         $xpCurrent = $experience % 500;
 
@@ -128,20 +156,20 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildGoal(int $minutesToday): array
+    private function buildGoal(int $secondsToday): array
     {
-        $target = 360;
-        $progress = min(100, (int) round(($minutesToday / max(1, $target)) * 100));
+        $targetSeconds = 360 * 60;
+        $progress = min(100, (int) round(($secondsToday / max(1, $targetSeconds)) * 100));
 
         return [
             'title' => 'Meta diaria',
-            'done_minutes' => $minutesToday,
-            'target_minutes' => $target,
-            'remaining_minutes' => max(0, $target - $minutesToday),
+            'done_minutes' => intdiv($secondsToday, 60),
+            'target_minutes' => 360,
+            'remaining_minutes' => intdiv(max(0, $targetSeconds - $secondsToday), 60),
             'progress' => $progress,
-            'done_label' => $this->formatMinutesAsHours($minutesToday),
-            'target_label' => $this->formatMinutesAsHours($target),
-            'remaining_label' => $this->formatMinutesAsHours(max(0, $target - $minutesToday)),
+            'done_label' => $this->formatSecondsAsHours($secondsToday),
+            'target_label' => $this->formatMinutesAsHours(360),
+            'remaining_label' => $this->formatSecondsAsHours(max(0, $targetSeconds - $secondsToday)),
             'bars' => [2, 4, 6, 7, 10, 14, 8, 11, 15, 9, 12, 16, 7, 5, 4, 10, 13, 6, 9, 12, 11, 7, 5, 3],
         ];
     }
@@ -151,7 +179,7 @@ class DashboardController extends Controller
         return [
             [
                 'label' => 'Horas estudadas',
-                'value' => $this->formatMinutesAsHours($totals['minutes_total']),
+                'value' => $this->formatSecondsAsHours($totals['seconds_total']),
                 'icon' => 'clock',
                 'tone' => 'violet',
                 'subtext' => 'tempo acumulado',
@@ -184,7 +212,7 @@ class DashboardController extends Controller
     {
         return [
             ['label' => 'Inicio', 'href' => '#inicio', 'icon' => 'home', 'active' => true],
-            ['label' => 'Materias', 'href' => '#materias', 'icon' => 'book', 'active' => false],
+            ['label' => 'Materias', 'href' => route('study-subjects.index'), 'icon' => 'book', 'active' => false],
             ['label' => 'Sessoes', 'href' => '#sessoes', 'icon' => 'clock', 'active' => false],
             ['label' => 'Projetos', 'href' => '#projetos', 'icon' => 'folder', 'active' => false],
             ['label' => 'Anotacoes', 'href' => '#anotacoes', 'icon' => 'notes', 'active' => false],
@@ -194,29 +222,6 @@ class DashboardController extends Controller
             ['label' => 'Ranking', 'href' => '#ranking', 'icon' => 'chart', 'active' => false],
             ['label' => 'Configuracoes', 'href' => route('profile.show', $user), 'icon' => 'settings', 'active' => false],
         ];
-    }
-
-    private function buildSubjects($studySubjects): array
-    {
-        $maxSeconds = max(1, (int) $studySubjects->max('duration_seconds_total'));
-        $tones = ['violet', 'cyan', 'amber', 'emerald', 'indigo'];
-        $icons = ['book', 'code', 'database', 'language', 'target'];
-
-        return $studySubjects
-            ->map(function ($subject, int $index) use ($maxSeconds, $tones, $icons) {
-                $seconds = (int) ($subject->duration_seconds_total ?? 0);
-
-                return [
-                    'name' => $subject->name,
-                    'description' => $subject->description,
-                    'seconds' => $seconds,
-                    'hours_label' => $this->formatStudySecondsAsHours($seconds),
-                    'progress' => $seconds > 0 ? (int) round(($seconds / $maxSeconds) * 100) : 0,
-                    'tone' => $tones[$index % count($tones)],
-                    'icon' => $icons[$index % count($icons)],
-                ];
-            })
-            ->all();
     }
 
     private function buildRecentActivity(User $user, $recentSessions, $recentLogs): array
@@ -262,6 +267,19 @@ class DashboardController extends Controller
         ];
 
         return array_slice($items, 0, 4);
+    }
+
+    private function finishedSecondsTodayForCurrentSubject(User $user, $currentSession, string $today): int
+    {
+        return (int) $user->studySessions()
+            ->whereNotNull('ended_at')
+            ->whereDate('started_at', $today)
+            ->when(
+                $currentSession->study_subject_id,
+                fn ($query) => $query->where('study_subject_id', $currentSession->study_subject_id),
+                fn ($query) => $query->where('subject', $currentSession->subject)
+            )
+            ->sum('duration_seconds');
     }
 
     private function buildAchievements($recentLogs): array
@@ -354,15 +372,9 @@ class DashboardController extends Controller
         return $hours.'h'.$remaining;
     }
 
-    private function formatStudySecondsAsHours(int $seconds): string
+    private function formatSecondsAsHours(int $seconds): string
     {
-        $minutes = intdiv($seconds, 60);
-
-        if ($seconds > 0 && $minutes === 0) {
-            $minutes = 1;
-        }
-
-        return $this->formatMinutesAsHours($minutes).' estudadas';
+        return $this->formatMinutesAsHours(intdiv(max(0, $seconds), 60));
     }
 
     private function formatTimer(int $seconds): string

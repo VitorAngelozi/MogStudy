@@ -15,6 +15,9 @@ class StudySubject extends Model
         'user_id',
         'name',
         'description',
+        'goal_period',
+        'goal_minutes',
+        'photo_path',
     ];
 
     public function user(): BelongsTo

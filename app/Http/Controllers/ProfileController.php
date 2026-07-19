@@ -38,7 +38,9 @@ class ProfileController extends Controller
     public function updateReadme(Request $request)
     {
         $data = $request->validate([
-            'readme_markdown' => ['required', 'string', 'max:20000'],
+            'readme_markdown' => ['required', 'string', 'max:500'],
+        ], [
+            'readme_markdown.max' => 'O README pode ter no maximo 500 caracteres.',
         ]);
 
         $request->user()->forceFill([

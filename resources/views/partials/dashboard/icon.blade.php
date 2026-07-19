@@ -77,6 +77,29 @@
             <path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.5-2.3.7a7.8 7.8 0 0 0-1.9-1.1l-.4-2.4h-4l-.4 2.4a7.8 7.8 0 0 0-1.9 1.1l-2.3-.7-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.1l-2 1.5 2 3.5 2.3-.7a7.8 7.8 0 0 0 1.9 1.1l.4 2.4h4l.4-2.4a7.8 7.8 0 0 0 1.9-1.1l2.3.7 2-3.5-2-1.5c.1-.4.1-.7.1-1.1Z"></path>
         </svg>
         @break
+    @case('pencil')
+        <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.5 19.5 5.8 15 16.4 4.4a2.1 2.1 0 0 1 3 3L8.8 18z"></path>
+            <path d="m14.8 6 3.2 3.2"></path>
+            <path d="M4.5 19.5h5"></path>
+        </svg>
+        @break
+    @case('upload')
+        <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V5"></path>
+            <path d="m7.5 9.5 4.5-4.5 4.5 4.5"></path>
+            <path d="M5 15.5v2.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2.5"></path>
+        </svg>
+        @break
+    @case('trash')
+        <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.5 7h15"></path>
+            <path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7"></path>
+            <path d="M7 7l.8 12a2 2 0 0 0 2 1.8h4.4a2 2 0 0 0 2-1.8L17 7"></path>
+            <path d="M10.5 11v5.5"></path>
+            <path d="M13.5 11v5.5"></path>
+        </svg>
+        @break
     @case('laravel')
         <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 7.5 12 4l5 3.5-5 3.5z"></path>

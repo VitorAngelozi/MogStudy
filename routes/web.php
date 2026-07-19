@@ -30,7 +30,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/study-subjects', [StudySubjectController::class, 'index'])->name('study-subjects.index');
     Route::post('/study-subjects', [StudySubjectController::class, 'store'])->name('study-subjects.store');
+    Route::put('/study-subjects/{studySubject}', [StudySubjectController::class, 'update'])->name('study-subjects.update');
+    Route::delete('/study-subjects/{studySubject}', [StudySubjectController::class, 'destroy'])->name('study-subjects.destroy');
     Route::post('/study-sessions', [StudySessionController::class, 'store'])->name('study-sessions.store');
     Route::post('/study-sessions/{studySession}/stop', [StudySessionController::class, 'stop'])->name('study-sessions.stop');
     Route::post('/daily-logs', [DailyLogController::class, 'store'])->name('daily-logs.store');

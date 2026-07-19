@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\DailyLog;
+use App\Models\StudySession;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -53,12 +53,16 @@ class ActivityHeatmap
 
     private function minutesByDate(int $userId, CarbonInterface $startedAt, CarbonInterface $endedAt): Collection
     {
-        return DailyLog::query()
+        return StudySession::query()
             ->where('user_id', $userId)
-            ->whereBetween('log_date', [$startedAt->toDateString(), $endedAt->toDateString()])
-            ->selectRaw('log_date, sum(study_minutes) as minutes')
-            ->groupBy('log_date')
-            ->pluck('minutes', 'log_date')
+            ->whereNotNull('ended_at')
+            ->whereBetween('started_at', [
+                $startedAt->copy()->startOfDay()->toDateTimeString(),
+                $endedAt->copy()->endOfDay()->toDateTimeString(),
+            ])
+            ->selectRaw('DATE(started_at) as study_date, FLOOR(SUM(duration_seconds) / 60) as minutes')
+            ->groupByRaw('DATE(started_at)')
+            ->pluck('minutes', 'study_date')
             ->mapWithKeys(fn ($minutes, $date) => [
                 Carbon::parse($date)->toDateString() => (int) $minutes,
             ]);
@@ -98,15 +102,15 @@ class ActivityHeatmap
 
     private function dayLabel(CarbonInterface $date, int $minutes): string
     {
-        return $date->format('d/m/Y').' - '.$minutes.' min';
+        return $date->format('d/m/Y').' - '.$this->formatMinutesAsHours($minutes).' estudados';
     }
 
     private function contributionLevel(int $minutes): int
     {
         return match (true) {
-            $minutes >= 240 => 4,
-            $minutes >= 120 => 3,
-            $minutes >= 60 => 2,
+            $minutes >= 120 => 4,
+            $minutes >= 60 => 3,
+            $minutes >= 30 => 2,
             $minutes > 0 => 1,
             default => 0,
         };
@@ -128,5 +132,21 @@ class ActivityHeatmap
             11 => 'Nov',
             default => 'Dez',
         };
+    }
+
+    private function formatMinutesAsHours(int $minutes): string
+    {
+        $hours = intdiv($minutes, 60);
+        $remaining = $minutes % 60;
+
+        if ($hours === 0) {
+            return $remaining.'m';
+        }
+
+        if ($remaining === 0) {
+            return $hours.'h';
+        }
+
+        return $hours.'h'.$remaining;
     }
 }

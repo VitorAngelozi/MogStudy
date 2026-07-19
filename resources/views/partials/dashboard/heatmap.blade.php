@@ -31,7 +31,7 @@
                                         type="button"
                                         class="heat-cell heat-level-{{ $day['level'] }}"
                                         title="{{ $day['label'] }}"
-                                        aria-label="{{ $day['label'] }} estudados"
+                                        aria-label="{{ $day['label'] }}"
                                     ></button>
                                 @endif
                             @endforeach

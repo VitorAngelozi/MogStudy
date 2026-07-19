@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Support\ActivityHeatmap;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MogStudyFlowTest extends TestCase
@@ -101,6 +103,37 @@ class MogStudyFlowTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $session->duration_seconds);
     }
 
+    public function test_stopping_session_saves_only_current_session_duration_not_daily_accumulated_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $subject = StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'Laravel',
+            ]);
+
+            $this->createFinishedStudySession($user, '2026-07-18 08:00:00', 10, $subject);
+
+            $session = StudySession::create([
+                'user_id' => $user->id,
+                'study_subject_id' => $subject->id,
+                'subject' => 'Laravel',
+                'started_at' => now()->subMinutes(5),
+                'ended_at' => null,
+                'duration_seconds' => 0,
+            ]);
+
+            $this->actingAs($user)->post(route('study-sessions.stop', $session))
+                ->assertRedirect(route('dashboard'));
+
+            $this->assertSame(300, $session->refresh()->duration_seconds);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_user_can_create_study_subject_and_dashboard_uses_real_subjects(): void
     {
         $user = User::factory()->create();
@@ -121,6 +154,435 @@ class MogStudyFlowTest extends TestCase
             ->assertSeeText('Matematica')
             ->assertSeeText('0m estudadas')
             ->assertDontSeeText('Ingles');
+    }
+
+    public function test_dashboard_idle_timer_shows_zero_when_user_has_no_study_today(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Total estudado hoje')
+                ->assertSeeText('00:00:00')
+                ->assertDontSeeText('01:25:43');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_idle_timer_shows_total_finished_study_time_today(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+
+            $this->createFinishedStudySession($user, '2026-07-18 09:00:00', 30);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Total estudado hoje')
+                ->assertSeeText('00:30:00')
+                ->assertSeeText('30m hoje')
+                ->assertDontSeeText('30h hoje');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_daily_goal_sums_finished_sessions_from_all_subjects(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $laravel = StudySubject::create(['user_id' => $user->id, 'name' => 'Laravel']);
+            $java = StudySubject::create(['user_id' => $user->id, 'name' => 'Java']);
+
+            $this->createFinishedStudySession($user, '2026-07-18 08:00:00', 30, $laravel);
+            $this->createFinishedStudySession($user, '2026-07-18 10:00:00', 50, $java);
+            $this->createFinishedStudySession($user, '2026-07-17 10:00:00', 120, $java);
+
+            StudySession::create([
+                'user_id' => $user->id,
+                'study_subject_id' => $laravel->id,
+                'subject' => 'Laravel',
+                'started_at' => now()->subMinutes(20),
+                'ended_at' => null,
+                'duration_seconds' => 1200,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('1h20 hoje')
+                ->assertSeeText('1h20')
+                ->assertSeeText('de 6h');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_running_timer_shows_subject_daily_accumulated_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $laravel = StudySubject::create(['user_id' => $user->id, 'name' => 'Laravel']);
+            $java = StudySubject::create(['user_id' => $user->id, 'name' => 'Java']);
+
+            $this->createFinishedStudySession($user, '2026-07-18 08:00:00', 10, $laravel);
+            $this->createFinishedStudySession($user, '2026-07-18 09:00:00', 40, $java);
+            $this->createFinishedStudySession($user, '2026-07-17 09:00:00', 90, $laravel);
+
+            StudySession::create([
+                'user_id' => $user->id,
+                'study_subject_id' => $laravel->id,
+                'subject' => 'Laravel',
+                'started_at' => now()->subMinutes(5),
+                'ended_at' => null,
+                'duration_seconds' => 0,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Laravel')
+                ->assertSee('data-base-seconds="600"', false)
+                ->assertSee('data-elapsed-seconds="900"', false)
+                ->assertSeeText('00:15:00');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_guest_is_redirected_from_study_subjects_page(): void
+    {
+        $this->get(route('study-subjects.index'))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_study_subjects_page_lists_only_authenticated_users_subjects(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+            'description' => 'Framework PHP.',
+        ]);
+
+        StudySubject::create([
+            'user_id' => $otherUser->id,
+            'name' => 'Materia de outro usuario',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-subjects.index'))
+            ->assertOk()
+            ->assertSeeText('Organize seus focos de estudo')
+            ->assertSeeText('Laravel')
+            ->assertSeeText('Framework PHP.')
+            ->assertDontSeeText('Materia de outro usuario');
+    }
+
+    public function test_study_subjects_page_renders_edit_card_and_visual_photo_upload(): void
+    {
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+            'description' => 'Framework PHP.',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-subjects.index'))
+            ->assertOk()
+            ->assertSee('aria-label="Editar Laravel"', false)
+            ->assertSee('name="photo" accept="image/jpeg,image/png,image/webp"', false)
+            ->assertSee('subject-photo-tile', false)
+            ->assertSee(route('study-subjects.update', $subject), false)
+            ->assertSee('name="_method" value="PUT"', false);
+    }
+
+    public function test_study_subjects_page_renders_delete_button_for_subject(): void
+    {
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-subjects.index'))
+            ->assertOk()
+            ->assertSee('aria-label="Excluir Laravel"', false)
+            ->assertSee(route('study-subjects.destroy', $subject), false)
+            ->assertSee('name="_method" value="DELETE"', false);
+    }
+
+    public function test_study_subjects_page_can_create_full_subject_and_return_to_itself(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('study-subjects.store'), [
+            'return_to' => 'subjects',
+            'name' => 'Banco de Dados',
+            'description' => 'SQL e modelagem.',
+            'goal_value' => '90',
+            'goal_unit' => 'minutes',
+            'goal_period' => 'weekly',
+            'photo' => UploadedFile::fake()->image('database.png')->size(256),
+        ])->assertRedirect(route('study-subjects.index'));
+
+        $subject = StudySubject::query()->firstOrFail();
+
+        $this->assertSame('Banco de Dados', $subject->name);
+        $this->assertSame('SQL e modelagem.', $subject->description);
+        $this->assertSame('weekly', $subject->goal_period);
+        $this->assertSame(90, $subject->goal_minutes);
+        $this->assertNotNull($subject->photo_path);
+        Storage::disk('public')->assertExists($subject->photo_path);
+    }
+
+    public function test_dashboard_shows_only_three_recent_active_subjects(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $older = StudySubject::create(['user_id' => $user->id, 'name' => 'Antiga']);
+            $createdRecent = StudySubject::create(['user_id' => $user->id, 'name' => 'Criada recente']);
+            $editedRecent = StudySubject::create(['user_id' => $user->id, 'name' => 'Editada recente']);
+            $studiedRecent = StudySubject::create(['user_id' => $user->id, 'name' => 'Estudada recente']);
+
+            $older->forceFill(['created_at' => now()->subDays(8), 'updated_at' => now()->subDays(8)])->save();
+            $createdRecent->forceFill(['created_at' => now()->subDays(2), 'updated_at' => now()->subDays(2)])->save();
+            $editedRecent->forceFill(['created_at' => now()->subDays(7), 'updated_at' => now()->subHours(2)])->save();
+            $studiedRecent->forceFill(['created_at' => now()->subDays(9), 'updated_at' => now()->subDays(9)])->save();
+
+            StudySession::create([
+                'user_id' => $user->id,
+                'study_subject_id' => $studiedRecent->id,
+                'subject' => 'Estudada recente',
+                'started_at' => now()->subHour(),
+                'ended_at' => now(),
+                'duration_seconds' => 1800,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Criada recente')
+                ->assertSeeText('Editada recente')
+                ->assertSeeText('Estudada recente')
+            ->assertDontSee('<strong>Antiga</strong>', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_subject_cards_render_edit_shortcut_to_subjects_page(): void
+    {
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('aria-label="Editar Laravel"', false)
+            ->assertSee(route('study-subjects.index').'#materia-'.$subject->id, false);
+    }
+
+    public function test_study_subject_name_is_limited_to_50_characters(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->from(route('dashboard'))->post(route('study-subjects.store'), [
+            'name' => str_repeat('a', 51),
+        ])->assertRedirect(route('dashboard'))
+            ->assertSessionHasErrors('name');
+
+        $this->assertDatabaseCount('study_subjects', 0);
+    }
+
+    public function test_user_can_update_study_subject_goal_and_photo(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($user)->put(route('study-subjects.update', $subject), [
+            'name' => 'Laravel Avancado',
+            'description' => 'Arquitetura e testes.',
+            'goal_value' => '1.5',
+            'goal_unit' => 'hours',
+            'goal_period' => 'daily',
+            'photo' => UploadedFile::fake()->image('laravel.png')->size(512),
+        ])->assertRedirect(route('dashboard'));
+
+        $subject->refresh();
+
+        $this->assertSame('Laravel Avancado', $subject->name);
+        $this->assertSame('daily', $subject->goal_period);
+        $this->assertSame(90, $subject->goal_minutes);
+        $this->assertNotNull($subject->photo_path);
+        Storage::disk('public')->assertExists($subject->photo_path);
+    }
+
+    public function test_user_cannot_update_another_users_study_subject(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $owner->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($otherUser)->put(route('study-subjects.update', $subject), [
+            'name' => 'Roubo de materia',
+        ])->assertForbidden();
+
+        $this->assertSame('Laravel', $subject->refresh()->name);
+    }
+
+    public function test_user_can_delete_own_study_subject_without_deleting_session_history(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+            'photo_path' => UploadedFile::fake()->image('laravel.png')->store('study-subjects', 'public'),
+        ]);
+
+        $session = $this->createFinishedStudySession($user, '2026-07-18 09:00:00', 30, $subject);
+
+        $this->actingAs($user)
+            ->delete(route('study-subjects.destroy', $subject))
+            ->assertRedirect(route('study-subjects.index'));
+
+        $this->assertDatabaseMissing('study_subjects', [
+            'id' => $subject->id,
+        ]);
+
+        $session->refresh();
+        $this->assertNull($session->study_subject_id);
+        $this->assertSame('Laravel', $session->subject);
+        Storage::disk('public')->assertMissing($subject->photo_path);
+    }
+
+    public function test_user_cannot_delete_another_users_study_subject(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $owner->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($otherUser)
+            ->delete(route('study-subjects.destroy', $subject))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('study_subjects', [
+            'id' => $subject->id,
+        ]);
+    }
+
+    public function test_user_cannot_delete_subject_with_running_session(): void
+    {
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        StudySession::create([
+            'user_id' => $user->id,
+            'study_subject_id' => $subject->id,
+            'subject' => 'Laravel',
+            'started_at' => now()->subMinutes(10),
+            'ended_at' => null,
+            'duration_seconds' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('study-subjects.destroy', $subject))
+            ->assertRedirect(route('study-subjects.index'))
+            ->assertSessionHasErrors('subject');
+
+        $this->assertDatabaseHas('study_subjects', [
+            'id' => $subject->id,
+        ]);
+    }
+
+    public function test_study_subject_photo_must_respect_two_megabyte_limit(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $subject = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($user)->from(route('dashboard'))->put(route('study-subjects.update', $subject), [
+            'name' => 'Laravel',
+            'photo' => UploadedFile::fake()->image('pesada.png')->size(2049),
+        ])->assertRedirect(route('dashboard'))
+            ->assertSessionHasErrors('photo');
+
+        $this->assertNull($subject->refresh()->photo_path);
+    }
+
+    public function test_subject_dashboard_progress_uses_daily_goal_when_defined(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $subject = StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'Laravel',
+                'goal_period' => 'daily',
+                'goal_minutes' => 120,
+            ]);
+
+            StudySession::create([
+                'user_id' => $user->id,
+                'study_subject_id' => $subject->id,
+                'subject' => 'Laravel',
+                'started_at' => now()->subHour(),
+                'ended_at' => now(),
+                'duration_seconds' => 3600,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Meta: 2h por dia')
+                ->assertSeeText('50%');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_user_cannot_create_duplicate_study_subject_name(): void
@@ -174,6 +636,72 @@ class MogStudyFlowTest extends TestCase
             ->assertSeeText('Hello from MogStudy.');
     }
 
+    public function test_readme_is_limited_to_500_characters(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->from(route('dashboard'))->put(route('readme.update'), [
+            'readme_markdown' => str_repeat('a', 501),
+        ])->assertRedirect(route('dashboard'))
+            ->assertSessionHasErrors('readme_markdown');
+    }
+
+    public function test_activity_heatmap_uses_finished_study_sessions_for_green_levels(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+
+            $this->createFinishedStudySession($user, '2026-07-13 09:00:00', 90);
+            $this->createFinishedStudySession($user, '2026-07-14 09:00:00', 20);
+            $this->createFinishedStudySession($user, '2026-07-15 09:00:00', 45);
+            $this->createFinishedStudySession($user, '2026-07-16 09:00:00', 60);
+            $this->createFinishedStudySession($user, '2026-07-17 09:00:00', 120);
+
+            $heatmap = app(ActivityHeatmap::class)->build($user->id);
+            $days = collect($heatmap['weeks'])->flatMap(fn ($week) => $week['days']);
+
+            $this->assertSame('13/07/2026 - 1h30 estudados', $days->firstWhere('date', '2026-07-13')['label']);
+            $this->assertSame(20, $days->firstWhere('date', '2026-07-14')['minutes']);
+            $this->assertSame(1, $days->firstWhere('date', '2026-07-14')['level']);
+            $this->assertSame(2, $days->firstWhere('date', '2026-07-15')['level']);
+            $this->assertSame(3, $days->firstWhere('date', '2026-07-16')['level']);
+            $this->assertSame(4, $days->firstWhere('date', '2026-07-17')['level']);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_activity_heatmap_sums_sessions_and_ignores_running_sessions(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+
+            $this->createFinishedStudySession($user, '2026-07-18 08:00:00', 20);
+            $this->createFinishedStudySession($user, '2026-07-18 10:00:00', 25);
+
+            StudySession::create([
+                'user_id' => $user->id,
+                'subject' => 'Sessao aberta',
+                'started_at' => now()->subMinutes(90),
+                'ended_at' => null,
+                'duration_seconds' => 5400,
+            ]);
+
+            $heatmap = app(ActivityHeatmap::class)->build($user->id);
+            $days = collect($heatmap['weeks'])->flatMap(fn ($week) => $week['days']);
+            $today = $days->firstWhere('date', '2026-07-18');
+
+            $this->assertSame(45, $today['minutes']);
+            $this->assertSame(2, $today['level']);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_dashboard_renders_yearly_activity_heatmap(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
@@ -181,38 +709,40 @@ class MogStudyFlowTest extends TestCase
         try {
             $user = User::factory()->create();
 
-            DailyLog::create([
-                'user_id' => $user->id,
-                'log_date' => '2026-07-18',
-                'title' => 'Dia forte',
-                'content' => 'Fechei um bloco grande.',
-                'study_minutes' => 240,
-            ]);
-
-            DailyLog::create([
-                'user_id' => $user->id,
-                'log_date' => '2025-07-19',
-                'title' => 'Primeiro dia',
-                'content' => 'Comecei o registro anual.',
-                'study_minutes' => 30,
-            ]);
+            $this->createFinishedStudySession($user, '2026-07-18 09:00:00', 120);
+            $this->createFinishedStudySession($user, '2025-07-19 09:00:00', 30);
 
             $heatmap = app(ActivityHeatmap::class)->build($user->id);
             $days = collect($heatmap['weeks'])->flatMap(fn ($week) => $week['days']);
 
             $this->assertSame(365, $heatmap['total_days']);
             $this->assertGreaterThanOrEqual(365, $days->where('is_empty', false)->count());
-            $this->assertSame(240, $days->firstWhere('date', '2026-07-18')['minutes']);
+            $this->assertSame(120, $days->firstWhere('date', '2026-07-18')['minutes']);
             $this->assertSame(4, $days->firstWhere('date', '2026-07-18')['level']);
 
             $this->actingAs($user)
                 ->get(route('dashboard'))
                 ->assertOk()
                 ->assertSeeText('Contribuicoes no ultimo ano')
-                ->assertSee('18/07/2026 - 240 min', false)
+                ->assertSee('heat-level-1', false)
+                ->assertSee('18/07/2026 - 2h estudados', false)
                 ->assertSee('heat-level-4', false);
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    private function createFinishedStudySession(User $user, string $startedAt, int $minutes, ?StudySubject $subject = null): StudySession
+    {
+        $startedAt = Carbon::parse($startedAt);
+
+        return StudySession::create([
+            'user_id' => $user->id,
+            'study_subject_id' => $subject?->id,
+            'subject' => $subject?->name ?? 'Laravel',
+            'started_at' => $startedAt,
+            'ended_at' => $startedAt->copy()->addMinutes($minutes),
+            'duration_seconds' => $minutes * 60,
+        ]);
     }
 }

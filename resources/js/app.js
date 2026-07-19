@@ -10,11 +10,33 @@ const formatElapsed = (totalSeconds) => {
 };
 
 const timers = document.querySelectorAll('[data-study-timer]');
+const root = document.documentElement;
+const themeToggle = document.querySelector('[data-theme-toggle]');
+
+const applyTheme = (theme) => {
+    root.dataset.theme = theme;
+    localStorage.setItem('mogstudy-theme', theme);
+
+    if (themeToggle) {
+        const isLight = theme === 'light';
+        themeToggle.setAttribute('aria-pressed', String(isLight));
+        themeToggle.setAttribute('aria-label', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
+    }
+};
+
+if (themeToggle) {
+    applyTheme(root.dataset.theme || 'dark');
+
+    themeToggle.addEventListener('click', () => {
+        applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light');
+    });
+}
 
 timers.forEach((widget) => {
     const valueNode = widget.querySelector('[data-timer-value]');
     const pauseButton = widget.querySelector('[data-timer-pause]');
     const startedAtRaw = widget.dataset.startedAt;
+    const baseSeconds = Number(widget.dataset.baseSeconds || 0);
     const elapsedSeconds = Number(widget.dataset.elapsedSeconds || 0);
 
     if (!valueNode) {
@@ -22,7 +44,7 @@ timers.forEach((widget) => {
     }
 
     if (!startedAtRaw || startedAtRaw === 'null') {
-        valueNode.textContent = valueNode.textContent || formatElapsed(elapsedSeconds || 5143);
+        valueNode.textContent = valueNode.textContent || formatElapsed(elapsedSeconds);
         if (pauseButton) {
             pauseButton.disabled = true;
         }
@@ -36,7 +58,7 @@ timers.forEach((widget) => {
 
     const render = () => {
         const currentBase = paused && pausedAt ? pausedAt : Date.now();
-        const elapsed = (currentBase - baseTime) / 1000;
+        const elapsed = baseSeconds + ((currentBase - baseTime) / 1000);
         valueNode.textContent = formatElapsed(elapsed);
     };
 
@@ -161,4 +183,32 @@ document.querySelectorAll('[data-subject-combobox]').forEach((combobox) => {
 
     syncSelection();
     close();
+});
+
+document.querySelectorAll('[data-character-counter]').forEach((field) => {
+    const counter = document.getElementById(field.dataset.characterCounter);
+    const maxLength = Number(field.getAttribute('maxlength') || 0);
+
+    if (!counter || !maxLength) {
+        return;
+    }
+
+    const renderCount = () => {
+        counter.textContent = `${field.value.length}/${maxLength} caracteres`;
+    };
+
+    field.addEventListener('input', renderCount);
+    renderCount();
+});
+
+document.querySelectorAll('[data-subject-delete]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        const confirmed = window.confirm('Excluir esta materia? O historico de sessoes sera mantido.');
+
+        if (!confirmed) {
+            event.preventDefault();
+        }
+    });
 });

@@ -34,10 +34,7 @@
 
             <nav class="sidebar-panel sidebar-nav" aria-label="Navegacao principal">
                 @foreach ($sidebarItems as $item)
-                    <a
-                        href="{{ $item['href'] }}"
-                        class="sidebar-nav-item {{ $item['active'] ? 'is-active' : '' }}"
-                    >
+                    <a href="{{ $item['href'] }}" class="sidebar-nav-item {{ $item['active'] ? 'is-active' : '' }}">
                         <span class="sidebar-icon">
                             @include('partials.dashboard.icon', ['name' => $item['icon'], 'class' => 'icon-svg'])
                         </span>
@@ -66,11 +63,11 @@
             <section class="dashboard-panel hero-panel-main hero-panel-dashboard">
                 <div class="hero-copy">
                     <p class="eyebrow">{{ $greeting }}</p>
-                    <h1>{{ $greeting }}, {{ $profile['display_name'] }}! 👋</h1>
+                    <h1>{{ $greeting }}, {{ $profile['display_name'] }}!</h1>
                     <p class="lead">{{ $heroSubtitle }}</p>
 
                     <div class="hero-chips">
-                        <span class="hero-chip">🔥 {{ $streak }} dias</span>
+                        <span class="hero-chip">{{ $streak }} dias</span>
                         <span class="hero-chip">{{ $totals['today_label'] }} hoje</span>
                         <span class="hero-chip">{{ $profile['readme_words'] }} palavras no README</span>
                     </div>
@@ -78,7 +75,7 @@
 
                 <div class="hero-status">
                     <div class="streak-badge">
-                        <span class="streak-icon">🔥</span>
+                        <span class="streak-icon">S</span>
                         <div>
                             <strong>{{ $streak }} dias</strong>
                             <small>sequencia atual</small>
@@ -141,24 +138,13 @@
 
                             <label>
                                 <span>Titulo</span>
-                                <input
-                                    type="text"
-                                    name="title"
-                                    value="{{ old('title', $todayLog?->title) }}"
-                                    placeholder="O que marcou seu dia?"
-                                    required
-                                >
+                                <input type="text" name="title" value="{{ old('title', $todayLog?->title) }}" placeholder="O que marcou seu dia?" required>
                             </label>
                         </div>
 
                         <label>
                             <span>Conteudo</span>
-                            <textarea
-                                name="content"
-                                rows="4"
-                                placeholder="Escreva o que aprendeu hoje..."
-                                required
-                            >{{ old('content', $todayLog?->content) }}</textarea>
+                            <textarea name="content" rows="4" placeholder="Escreva o que aprendeu hoje..." required>{{ old('content', $todayLog?->content) }}</textarea>
                         </label>
 
                         <button type="submit" class="primary-button">Salvar anotacao</button>
@@ -189,49 +175,48 @@
                             <h2>Foco atual</h2>
                         </div>
 
-                        <span class="mini-link">{{ $studySubjects->count() }} cadastrada{{ $studySubjects->count() === 1 ? '' : 's' }}</span>
+                        <a href="{{ route('study-subjects.index') }}" class="mini-link">Ver todas</a>
                     </div>
 
-                    <form action="{{ route('study-subjects.store') }}" method="POST" class="subject-create-form">
-                        @csrf
-
-                        <label>
-                            <span>Nome da materia</span>
-                            <input
-                                type="text"
-                                name="name"
-                                value="{{ old('name') }}"
-                                placeholder="Laravel, Java, Banco de dados..."
-                                required
-                            >
-                        </label>
-
-                        <button type="submit" class="secondary-button">Criar materia</button>
-                    </form>
+                    <div class="subject-summary-actions">
+                        <span>{{ $studySubjects->count() }} cadastrada{{ $studySubjects->count() === 1 ? '' : 's' }}</span>
+                        <a href="{{ route('study-subjects.index') }}#criar" class="secondary-button">Criar materia</a>
+                    </div>
 
                     <div class="subject-list">
                         @forelse ($subjects as $subject)
                             <article class="subject-row">
-                                <span class="subject-icon subject-icon-{{ $subject['tone'] }}">
-                                    @include('partials.dashboard.icon', ['name' => $subject['icon'], 'class' => 'icon-svg'])
-                                </span>
+                                <div class="subject-row-main">
+                                    @if ($subject['photo_url'])
+                                        <img class="subject-photo" src="{{ $subject['photo_url'] }}" alt="Foto de {{ $subject['name'] }}">
+                                    @else
+                                        <span class="subject-icon subject-icon-{{ $subject['tone'] }}">
+                                            @include('partials.dashboard.icon', ['name' => $subject['icon'], 'class' => 'icon-svg'])
+                                        </span>
+                                    @endif
 
-                                <div class="subject-copy">
-                                    <strong>{{ $subject['name'] }}</strong>
-                                    <p>{{ $subject['hours_label'] }}</p>
-                                </div>
-
-                                <div class="subject-progress">
-                                    <span>{{ $subject['progress'] }}%</span>
-                                    <div class="progress-track progress-track-small">
-                                        <div class="progress-fill progress-fill-violet" style="width: {{ $subject['progress'] }}%"></div>
+                                    <div class="subject-copy">
+                                        <strong>{{ $subject['name'] }}</strong>
+                                        <p>{{ $subject['hours_label'] }}</p>
+                                        <small>{{ $subject['goal_label'] }}</small>
                                     </div>
+
+                                    <div class="subject-progress">
+                                        <span>{{ $subject['goal_progress'] }}%</span>
+                                        <div class="progress-track progress-track-small">
+                                            <div class="progress-fill progress-fill-violet" style="width: {{ $subject['goal_progress'] }}%"></div>
+                                        </div>
+                                    </div>
+
+                                    <a href="{{ route('study-subjects.index') }}#materia-{{ $subject['id'] }}" class="icon-button icon-button-small" aria-label="Editar {{ $subject['name'] }}">
+                                        @include('partials.dashboard.icon', ['name' => 'pencil', 'class' => 'icon-svg'])
+                                    </a>
                                 </div>
                             </article>
                         @empty
                             <div class="empty-state">
                                 <strong>Nenhuma materia cadastrada ainda.</strong>
-                                <p>Crie uma materia para liberar o timer e acompanhar seu foco real.</p>
+                                <p>Abra a tela de materias para criar a primeira e liberar o timer.</p>
                             </div>
                         @endforelse
                     </div>
@@ -263,11 +248,8 @@
 
                             <label>
                                 <span>README em markdown</span>
-                                <textarea
-                                    name="readme_markdown"
-                                    rows="8"
-                                    placeholder="# Sobre mim"
-                                >{{ old('readme_markdown', $user->readme_markdown ?: $user->defaultReadmeTemplate()) }}</textarea>
+                                <textarea name="readme_markdown" rows="8" maxlength="500" placeholder="# Sobre mim" data-character-counter="readme-counter">{{ old('readme_markdown', $user->readme_markdown ?: $user->defaultReadmeTemplate()) }}</textarea>
+                                <small class="muted character-counter" id="readme-counter">0/500 caracteres</small>
                             </label>
 
                             <button type="submit" class="secondary-button">Atualizar README</button>
@@ -320,6 +302,7 @@
                     class="timer-widget"
                     data-study-timer
                     data-started-at="{{ $timer['started_at'] }}"
+                    data-base-seconds="{{ $timer['base_seconds'] }}"
                     data-elapsed-seconds="{{ $timer['elapsed_seconds'] }}"
                     data-state="{{ $timer['state'] }}"
                 >
@@ -357,12 +340,7 @@
                                         required
                                         data-subject-search
                                     >
-                                    <input
-                                        type="hidden"
-                                        name="study_subject_id"
-                                        value="{{ old('study_subject_id') }}"
-                                        data-subject-id
-                                    >
+                                    <input type="hidden" name="study_subject_id" value="{{ old('study_subject_id') }}" data-subject-id>
                                     <div class="subject-options" data-subject-options>
                                         @foreach ($studySubjects as $subject)
                                             <button
