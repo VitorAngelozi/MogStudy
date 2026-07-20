@@ -67,7 +67,7 @@
             <div class="dashboard-topline">
                 <details class="friend-bell">
                     <summary aria-label="Notificacoes de amizade">
-                        @include('partials.dashboard.icon', ['name' => 'users', 'class' => 'icon-svg'])
+                        @include('partials.dashboard.icon', ['name' => 'bell', 'class' => 'icon-svg'])
                         @if ($friendNotifications['count'] > 0)
                             <span>{{ $friendNotifications['count'] }}</span>
                         @endif

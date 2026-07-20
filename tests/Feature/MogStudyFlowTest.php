@@ -1070,6 +1070,7 @@ class MogStudyFlowTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('aria-label="Notificacoes de amizade"', false)
+            ->assertSee('data-icon="bell"', false)
             ->assertSeeText('2')
             ->assertSeeText('Nova Amiga')
             ->assertSeeText('enviou um pedido de amizade')
