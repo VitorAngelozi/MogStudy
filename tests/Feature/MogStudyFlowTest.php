@@ -333,7 +333,7 @@ class MogStudyFlowTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_study_group_page_renders_selected_focus_room_inline(): void
+    public function test_study_group_page_expands_focus_room_inline_without_selected_room_panel(): void
     {
         $user = User::factory()->create();
         $group = $this->createStudyGroupWithOwner($user);
@@ -349,8 +349,10 @@ class MogStudyFlowTest extends TestCase
         $this->actingAs($user)
             ->get(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]))
             ->assertOk()
-            ->assertSeeText('Sala selecionada')
+            ->assertDontSeeText('Sala selecionada')
             ->assertSeeText('Matematica')
+            ->assertSeeText('Canal ativo')
+            ->assertSee('is-expanded', false)
             ->assertSeeText('Materia pessoal')
             ->assertSeeText('Play / Iniciar estudo')
             ->assertSee(route('study-groups.focus-rooms.start', [$group, $room]), false);
@@ -380,6 +382,7 @@ class MogStudyFlowTest extends TestCase
             'is_active' => true,
         ]);
         $subject = StudySubject::create(['user_id' => $user->id, 'name' => 'Algebra']);
+        $fallbackSubject = StudySubject::create(['user_id' => $memberWithoutPhoto->id, 'name' => 'Geometria']);
         $session = StudySession::create([
             'user_id' => $user->id,
             'study_subject_id' => $subject->id,
@@ -388,11 +391,27 @@ class MogStudyFlowTest extends TestCase
             'subject' => $subject->name,
             'started_at' => now()->subMinute(),
         ]);
+        $fallbackSession = StudySession::create([
+            'user_id' => $memberWithoutPhoto->id,
+            'study_subject_id' => $fallbackSubject->id,
+            'study_group_id' => $group->id,
+            'study_focus_room_id' => $room->id,
+            'subject' => $fallbackSubject->name,
+            'started_at' => now()->subMinute(),
+        ]);
         StudyFocusParticipation::create([
             'study_focus_room_id' => $room->id,
             'study_session_id' => $session->id,
             'user_id' => $user->id,
             'study_subject_id' => $subject->id,
+            'started_at' => now()->subMinute(),
+            'status' => StudyFocusParticipation::STATUS_ACTIVE,
+        ]);
+        StudyFocusParticipation::create([
+            'study_focus_room_id' => $room->id,
+            'study_session_id' => $fallbackSession->id,
+            'user_id' => $memberWithoutPhoto->id,
+            'study_subject_id' => $fallbackSubject->id,
             'started_at' => now()->subMinute(),
             'status' => StudyFocusParticipation::STATUS_ACTIVE,
         ]);

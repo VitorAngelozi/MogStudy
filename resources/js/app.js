@@ -399,25 +399,32 @@ document.querySelectorAll('[data-focus-room-workspace]').forEach((workspace) => 
     workspace.querySelectorAll('[data-focus-room-select]').forEach((link) => {
         link.addEventListener('click', (event) => {
             const roomId = link.dataset.focusRoomId;
-            const panel = workspace.querySelector(`[data-focus-room-panel][data-focus-room-id="${roomId}"]`);
+            const card = workspace.querySelector(`[data-focus-room-card][data-focus-room-id="${roomId}"]`);
+            const details = card?.querySelector('[data-focus-room-details]');
 
-            if (!roomId || !panel) {
+            if (!roomId || !card || !details) {
                 return;
             }
 
             event.preventDefault();
 
-            workspace.querySelectorAll('[data-focus-room-select]').forEach((item) => {
-                item.classList.toggle('is-selected', item === link);
+            const shouldExpand = details.hidden;
+
+            workspace.querySelectorAll('[data-focus-room-card]').forEach((item) => {
+                const isSelected = item === card && shouldExpand;
+                item.classList.toggle('is-expanded', isSelected);
+                item.querySelector('[data-focus-room-details]')?.toggleAttribute('hidden', !isSelected);
             });
 
-            workspace.querySelectorAll('[data-focus-room-panel]').forEach((item) => {
-                const isSelected = item === panel;
-                item.hidden = !isSelected;
-                item.classList.toggle('is-active', isSelected);
-            });
+            const nextUrl = shouldExpand
+                ? link.href
+                : new URL(window.location.href);
 
-            window.history.replaceState({}, '', link.href);
+            if (!shouldExpand) {
+                nextUrl.searchParams.delete('room');
+            }
+
+            window.history.replaceState({}, '', nextUrl.toString());
         });
     });
 });

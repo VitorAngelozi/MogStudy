@@ -16,8 +16,6 @@ use App\Models\StudyFocusRoom;
 use App\Models\StudyGroup;
 use App\Models\StudyGroupMember;
 use App\Models\StudySubject;
-use App\Services\StudyGroups\FocusRoomRankingService;
-use App\Services\StudyGroups\StudyGroupRankingService;
 use App\Services\StudyGroups\StudyGroupStatisticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -83,7 +81,7 @@ class StudyGroupController extends Controller
             ->with('status', 'Grupo de estudo criado.');
     }
 
-    public function show(Request $request, StudyGroup $studyGroup, StudyGroupStatisticsService $statistics, StudyGroupRankingService $ranking, FocusRoomRankingService $roomRanking)
+    public function show(Request $request, StudyGroup $studyGroup, StudyGroupStatisticsService $statistics)
     {
         Gate::authorize('view', $studyGroup);
 
@@ -115,23 +113,16 @@ class StudyGroupController extends Controller
             ]);
         }
 
-        $roomRankingPeriod = $request->query('room_ranking', 'today');
         $roomSummaries = $studyGroup->focusRooms
             ->mapWithKeys(fn (StudyFocusRoom $room) => [$room->id => $statistics->roomSummary($room)]);
-        $roomRankings = $studyGroup->focusRooms
-            ->mapWithKeys(fn (StudyFocusRoom $room) => [$room->id => $roomRanking->forRoom($room, $roomRankingPeriod)]);
 
         return view('study_groups.show', [
             'group' => $studyGroup,
             'membership' => $membership,
             'canManageRooms' => $membership?->canManageFocusRooms() ?? false,
             'summary' => $statistics->groupSummary($studyGroup),
-            'ranking' => $ranking->forGroup($studyGroup, $request->query('ranking', 'today')),
             'selectedRoom' => $selectedRoom,
-            'selectedRoomSummary' => $selectedRoom ? $statistics->roomSummary($selectedRoom) : null,
-            'selectedRoomRanking' => $selectedRoom ? $roomRanking->forRoom($selectedRoom, $request->query('room_ranking', 'today')) : collect(),
             'roomSummaries' => $roomSummaries,
-            'roomRankings' => $roomRankings,
             'subjects' => $request->user()->studySubjects()->orderBy('name')->get(),
             'activeParticipation' => $activeParticipation,
         ]);
@@ -262,7 +253,7 @@ class StudyGroupController extends Controller
             ->with('status', 'Sala removida.');
     }
 
-    public function showFocusRoom(Request $request, StudyGroup $studyGroup, StudyFocusRoom $focusRoom, StudyGroupStatisticsService $statistics, FocusRoomRankingService $ranking)
+    public function showFocusRoom(Request $request, StudyGroup $studyGroup, StudyFocusRoom $focusRoom)
     {
         $this->ensureRoomBelongsToGroup($studyGroup, $focusRoom);
         Gate::authorize('view', $focusRoom);
