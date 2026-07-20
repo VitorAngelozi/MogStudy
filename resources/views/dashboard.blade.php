@@ -64,6 +64,45 @@
         </aside>
 
         <main class="dashboard-main">
+            <div class="dashboard-topline">
+                <details class="friend-bell">
+                    <summary aria-label="Notificacoes de amizade">
+                        @include('partials.dashboard.icon', ['name' => 'users', 'class' => 'icon-svg'])
+                        @if ($friendNotifications['count'] > 0)
+                            <span>{{ $friendNotifications['count'] }}</span>
+                        @endif
+                    </summary>
+
+                    <div class="friend-bell-menu">
+                        <p class="eyebrow">Amizades</p>
+
+                        @forelse ($friendNotifications['pending_received'] as $friendship)
+                            <article class="friend-notification">
+                                <div>
+                                    <strong>{{ $friendship->requester->displayName() }}</strong>
+                                    <small>enviou um pedido de amizade</small>
+                                </div>
+                                <form action="{{ route('friendships.accept', $friendship) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="mini-button">Aceitar</button>
+                                </form>
+                            </article>
+                        @empty
+                            <p class="muted">Nenhum pedido pendente.</p>
+                        @endforelse
+
+                        @foreach ($friendNotifications['accepted_sent'] as $friendship)
+                            <article class="friend-notification friend-notification-muted">
+                                <div>
+                                    <strong>{{ $friendship->addressee->displayName() }}</strong>
+                                    <small>aceitou seu pedido de amizade</small>
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+                </details>
+            </div>
+
             <section class="dashboard-panel hero-panel-main hero-panel-dashboard">
                 <div class="hero-copy">
                     <p class="eyebrow">{{ $greeting }}</p>
@@ -251,46 +290,6 @@
                 </div>
 
                 <div class="circle-layout">
-                    <aside class="circle-side">
-                        <div class="circle-box">
-                            <p class="eyebrow">Convites</p>
-                            @forelse ($circle['pending_requests'] as $friendship)
-                                <article class="circle-person">
-                                    <span class="friend-avatar">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($friendship->requester->displayName(), 0, 1)) }}</span>
-                                    <div>
-                                        <strong>{{ $friendship->requester->displayName() }}</strong>
-                                        <small>{{ '@'.$friendship->requester->username }}</small>
-                                    </div>
-                                    <form action="{{ route('friendships.accept', $friendship) }}" method="POST">
-                                        @csrf
-                                        <button type="submit" class="mini-button">Aceitar</button>
-                                    </form>
-                                </article>
-                            @empty
-                                <p class="muted">Nenhum convite pendente.</p>
-                            @endforelse
-                        </div>
-
-                        <div class="circle-box">
-                            <p class="eyebrow">Sugestoes</p>
-                            @forelse ($circle['suggestions'] as $suggestion)
-                                <article class="circle-person">
-                                    <span class="friend-avatar">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($suggestion->displayName(), 0, 1)) }}</span>
-                                    <div>
-                                        <strong>{{ $suggestion->displayName() }}</strong>
-                                        <small>{{ '@'.$suggestion->username }}</small>
-                                    </div>
-                                    <form action="{{ route('friendships.store', $suggestion) }}" method="POST">
-                                        @csrf
-                                        <button type="submit" class="mini-button">Adicionar</button>
-                                    </form>
-                                </article>
-                            @empty
-                                <p class="muted">Sem sugestoes novas por enquanto.</p>
-                            @endforelse
-                        </div>
-                    </aside>
-
                     <div class="circle-feed">
                         @forelse ($circle['feed'] as $item)
                             @if ($item['type'] === 'post')

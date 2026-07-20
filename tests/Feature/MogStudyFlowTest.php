@@ -1027,11 +1027,11 @@ class MogStudyFlowTest extends TestCase
         }
     }
 
-    public function test_dashboard_circle_shows_pending_requests_and_suggestions(): void
+    public function test_dashboard_circle_does_not_render_invites_or_suggestions_inside_panel(): void
     {
         $user = User::factory()->create();
         $requester = User::factory()->create(['display_name' => 'Nova Amiga']);
-        $suggestion = User::factory()->create(['display_name' => 'Sugestao Boa']);
+        User::factory()->create(['display_name' => 'Sugestao Boa']);
 
         Friendship::create([
             'requester_id' => $requester->id,
@@ -1042,10 +1042,91 @@ class MogStudyFlowTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertOk()
+            ->assertSeeText('Ciclo de estudos')
+            ->assertDontSeeText('Convites')
+            ->assertDontSeeText('Sugestoes')
+            ->assertDontSeeText('Sugestao Boa')
+            ->assertDontSeeText('Adicionar');
+    }
+
+    public function test_friend_bell_shows_pending_requests_and_accepted_sent_notifications(): void
+    {
+        $user = User::factory()->create();
+        $requester = User::factory()->create(['display_name' => 'Nova Amiga']);
+        $accepted = User::factory()->create(['display_name' => 'Amigo Aceito']);
+
+        $pendingFriendship = Friendship::create([
+            'requester_id' => $requester->id,
+            'addressee_id' => $user->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+        Friendship::create([
+            'requester_id' => $user->id,
+            'addressee_id' => $accepted->id,
+            'status' => Friendship::STATUS_ACCEPTED,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('aria-label="Notificacoes de amizade"', false)
+            ->assertSeeText('2')
             ->assertSeeText('Nova Amiga')
-            ->assertSee(route('friendships.accept', Friendship::query()->first()), false)
-            ->assertSeeText('Sugestao Boa')
-            ->assertSee(route('friendships.store', $suggestion), false);
+            ->assertSeeText('enviou um pedido de amizade')
+            ->assertSee(route('friendships.accept', $pendingFriendship), false)
+            ->assertSeeText('Amigo Aceito')
+            ->assertSeeText('aceitou seu pedido de amizade');
+    }
+
+    public function test_public_profile_renders_friendship_actions_by_state(): void
+    {
+        $viewer = User::factory()->create();
+        $target = User::factory()->create(['username' => 'target']);
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', $target))
+            ->assertOk()
+            ->assertSeeText('Adicionar amigo')
+            ->assertSee(route('friendships.store', $target), false);
+
+        $sent = Friendship::create([
+            'requester_id' => $viewer->id,
+            'addressee_id' => $target->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', $target))
+            ->assertOk()
+            ->assertSeeText('Pedido enviado')
+            ->assertSee(route('friendships.destroy', $sent), false);
+
+        $sent->delete();
+        $received = Friendship::create([
+            'requester_id' => $target->id,
+            'addressee_id' => $viewer->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', $target))
+            ->assertOk()
+            ->assertSeeText('Aceitar pedido')
+            ->assertSee(route('friendships.accept', $received), false);
+
+        $received->forceFill(['status' => Friendship::STATUS_ACCEPTED])->save();
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', $target))
+            ->assertOk()
+            ->assertSeeText('Amigos')
+            ->assertSee(route('friendships.destroy', $received), false);
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', $viewer))
+            ->assertOk()
+            ->assertDontSeeText('Adicionar amigo')
+            ->assertDontSeeText('Amigos');
     }
 
     public function test_activity_heatmap_uses_finished_study_sessions_for_green_levels(): void

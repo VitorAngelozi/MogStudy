@@ -83,6 +83,7 @@ class DashboardController extends Controller
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
         $achievements = $this->buildAchievements($recentLogs);
         $circle = $this->buildCircle($user);
+        $friendNotifications = $this->buildFriendNotifications($user);
         $sidebarItems = $this->buildSidebarItems($user);
         $metrics = $this->buildMetrics($totals, $studySubjects->count());
         $currentSessionBaseSeconds = $currentSession
@@ -120,6 +121,7 @@ class DashboardController extends Controller
             'recentActivity' => $recentActivity,
             'achievements' => $achievements,
             'circle' => $circle,
+            'friendNotifications' => $friendNotifications,
             'streak' => $this->buildStreak($user->id),
             'greeting' => $this->greetingForHour(now()->hour),
             'heroSubtitle' => $currentSession
@@ -314,34 +316,34 @@ class DashboardController extends Controller
             ->take(8)
             ->values();
 
-        $pendingRequests = Friendship::query()
+        return [
+            'friend_ids' => $friendIds,
+            'feed' => $feed,
+        ];
+    }
+
+    private function buildFriendNotifications(User $user): array
+    {
+        $pendingReceived = Friendship::query()
             ->with('requester')
             ->where('addressee_id', $user->id)
             ->where('status', Friendship::STATUS_PENDING)
             ->latest()
-            ->limit(3)
+            ->limit(5)
             ->get();
 
-        $connectedIds = Friendship::query()
+        $acceptedSent = Friendship::query()
+            ->with('addressee')
             ->where('requester_id', $user->id)
-            ->orWhere('addressee_id', $user->id)
-            ->get()
-            ->flatMap(fn ($friendship) => [$friendship->requester_id, $friendship->addressee_id])
-            ->push($user->id)
-            ->unique()
-            ->values();
-
-        $suggestions = User::query()
-            ->whereNotIn('id', $connectedIds)
+            ->where('status', Friendship::STATUS_ACCEPTED)
             ->latest()
-            ->limit(3)
+            ->limit(5)
             ->get();
 
         return [
-            'friend_ids' => $friendIds,
-            'feed' => $feed,
-            'pending_requests' => $pendingRequests,
-            'suggestions' => $suggestions,
+            'pending_received' => $pendingReceived,
+            'accepted_sent' => $acceptedSent,
+            'count' => $pendingReceived->count() + $acceptedSent->count(),
         ];
     }
 

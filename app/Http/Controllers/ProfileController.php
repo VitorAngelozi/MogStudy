@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyLog;
+use App\Models\Friendship;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class ProfileController extends Controller
             'logsCount' => $user->dailyLogs()->count(),
             'sessionsCount' => $user->studySessions()->count(),
             'streak' => $this->buildStreak($user->id),
+            'friendshipState' => $this->buildFriendshipState(request()->user(), $user),
         ]);
     }
 
@@ -82,5 +84,41 @@ class ProfileController extends Controller
         }
 
         return $streak;
+    }
+
+    private function buildFriendshipState(?User $viewer, User $profileUser): ?array
+    {
+        if (! $viewer || $viewer->id === $profileUser->id) {
+            return null;
+        }
+
+        $friendship = Friendship::query()
+            ->where(function ($query) use ($viewer, $profileUser) {
+                $query->where('requester_id', $viewer->id)
+                    ->where('addressee_id', $profileUser->id);
+            })
+            ->orWhere(function ($query) use ($viewer, $profileUser) {
+                $query->where('requester_id', $profileUser->id)
+                    ->where('addressee_id', $viewer->id);
+            })
+            ->first();
+
+        if (! $friendship) {
+            return [
+                'state' => 'none',
+                'friendship' => null,
+            ];
+        }
+
+        $state = match (true) {
+            $friendship->status === Friendship::STATUS_ACCEPTED => 'accepted',
+            $friendship->requester_id === $viewer->id => 'sent',
+            default => 'received',
+        };
+
+        return [
+            'state' => $state,
+            'friendship' => $friendship,
+        ];
     }
 }

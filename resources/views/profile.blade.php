@@ -21,6 +21,35 @@
                     <h1>{{ $profileUser->profileTitle() }}</h1>
                     <p class="profile-username">{{ '@'.$profileUser->username }}</p>
                     <p class="lead">{{ $profileUser->bio ?: 'Esse usuario ainda nao adicionou uma bio.' }}</p>
+                    @if ($friendshipState)
+                        <div class="profile-friend-actions">
+                            @if ($friendshipState['state'] === 'none')
+                                <form action="{{ route('friendships.store', $profileUser) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="primary-button">Adicionar amigo</button>
+                                </form>
+                            @elseif ($friendshipState['state'] === 'sent')
+                                <span class="status-pill">Pedido enviado</span>
+                                <form action="{{ route('friendships.destroy', $friendshipState['friendship']) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ghost-button">Cancelar</button>
+                                </form>
+                            @elseif ($friendshipState['state'] === 'received')
+                                <form action="{{ route('friendships.accept', $friendshipState['friendship']) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="primary-button">Aceitar pedido</button>
+                                </form>
+                            @else
+                                <span class="status-pill status-pill-live">Amigos</span>
+                                <form action="{{ route('friendships.destroy', $friendshipState['friendship']) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ghost-button">Remover</button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
 
