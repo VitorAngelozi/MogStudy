@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\CirclePost;
+use App\Models\Friendship;
 use App\Models\StudySession;
 use App\Models\StudySubject;
 use App\Models\User;
@@ -869,6 +871,181 @@ class MogStudyFlowTest extends TestCase
             'profile_title' => 'dev',
             'bio' => 'Bio.',
         ])->assertRedirect(route('login'));
+    }
+
+    public function test_user_can_send_accept_and_remove_friendship(): void
+    {
+        $requester = User::factory()->create();
+        $addressee = User::factory()->create();
+
+        $this->actingAs($requester)
+            ->post(route('friendships.store', $addressee))
+            ->assertRedirect(route('dashboard'));
+
+        $friendship = Friendship::query()->firstOrFail();
+        $this->assertSame(Friendship::STATUS_PENDING, $friendship->status);
+
+        $this->actingAs($addressee)
+            ->post(route('friendships.accept', $friendship))
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertSame(Friendship::STATUS_ACCEPTED, $friendship->refresh()->status);
+
+        $this->actingAs($requester)
+            ->delete(route('friendships.destroy', $friendship))
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseMissing('friendships', [
+            'id' => $friendship->id,
+        ]);
+    }
+
+    public function test_user_cannot_friend_self_or_duplicate_friendship(): void
+    {
+        $user = User::factory()->create();
+        $friend = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('friendships.store', $user))
+            ->assertStatus(422);
+
+        $this->actingAs($user)
+            ->post(route('friendships.store', $friend))
+            ->assertRedirect(route('dashboard'));
+
+        $this->actingAs($friend)
+            ->post(route('friendships.store', $user))
+            ->assertStatus(422);
+    }
+
+    public function test_user_can_create_circle_post_and_limits_content(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('circle-posts.store'), [
+            'title' => 'Passei de fase',
+            'body' => 'Hoje finalizei meu bloco de Laravel.',
+        ])->assertRedirect(route('dashboard'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('circle_posts', [
+            'user_id' => $user->id,
+            'title' => 'Passei de fase',
+        ]);
+
+        $this->actingAs($user)->from(route('dashboard'))->post(route('circle-posts.store'), [
+            'title' => str_repeat('a', 81),
+            'body' => str_repeat('b', 201),
+        ])->assertRedirect(route('dashboard'))
+            ->assertSessionHasErrors(['title', 'body']);
+    }
+
+    public function test_circle_reply_requires_cycle_access_and_respects_limit(): void
+    {
+        $author = User::factory()->create();
+        $friend = User::factory()->create();
+        $outsider = User::factory()->create();
+        $post = CirclePost::create([
+            'user_id' => $author->id,
+            'title' => 'Foco da semana',
+            'body' => 'Estudando bastante.',
+        ]);
+        Friendship::create([
+            'requester_id' => $author->id,
+            'addressee_id' => $friend->id,
+            'status' => Friendship::STATUS_ACCEPTED,
+        ]);
+
+        $this->actingAs($outsider)
+            ->post(route('circle-posts.replies.store', $post), ['body' => 'Oi'])
+            ->assertForbidden();
+
+        $this->actingAs($friend)
+            ->post(route('circle-posts.replies.store', $post), ['body' => str_repeat('x', 201)])
+            ->assertRedirect()
+            ->assertSessionHasErrors('body');
+
+        $this->actingAs($friend)
+            ->post(route('circle-posts.replies.store', $post), ['body' => 'Boa!'])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('circle_post_replies', [
+            'circle_post_id' => $post->id,
+            'user_id' => $friend->id,
+            'body' => 'Boa!',
+        ]);
+    }
+
+    public function test_dashboard_circle_shows_posts_replies_friend_sessions_and_filters_outsiders(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $friend = User::factory()->create(['display_name' => 'Amiga Dev']);
+            $outsider = User::factory()->create(['display_name' => 'Pessoa de Fora']);
+
+            Friendship::create([
+                'requester_id' => $user->id,
+                'addressee_id' => $friend->id,
+                'status' => Friendship::STATUS_ACCEPTED,
+            ]);
+
+            $post = CirclePost::create([
+                'user_id' => $friend->id,
+                'title' => 'Deploy estudado',
+                'body' => 'Revisei filas e cache.',
+            ]);
+            $post->replies()->create([
+                'user_id' => $user->id,
+                'body' => 'Mandou bem!',
+            ]);
+            CirclePost::create([
+                'user_id' => $outsider->id,
+                'title' => 'Post invisivel',
+                'body' => 'Nao deve aparecer.',
+            ]);
+            StudySession::create([
+                'user_id' => $friend->id,
+                'subject' => 'SQL',
+                'started_at' => now()->subMinutes(10),
+                'ended_at' => null,
+                'duration_seconds' => 0,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Ciclo de estudos')
+                ->assertSeeText('Deploy estudado')
+                ->assertSeeText('Revisei filas e cache.')
+                ->assertSeeText('Mandou bem!')
+                ->assertSeeText('Amiga Dev comecou a estudar SQL')
+                ->assertDontSeeText('Post invisivel');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_circle_shows_pending_requests_and_suggestions(): void
+    {
+        $user = User::factory()->create();
+        $requester = User::factory()->create(['display_name' => 'Nova Amiga']);
+        $suggestion = User::factory()->create(['display_name' => 'Sugestao Boa']);
+
+        Friendship::create([
+            'requester_id' => $requester->id,
+            'addressee_id' => $user->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSeeText('Nova Amiga')
+            ->assertSee(route('friendships.accept', Friendship::query()->first()), false)
+            ->assertSeeText('Sugestao Boa')
+            ->assertSee(route('friendships.store', $suggestion), false);
     }
 
     public function test_activity_heatmap_uses_finished_study_sessions_for_green_levels(): void

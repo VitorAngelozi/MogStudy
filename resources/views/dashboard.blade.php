@@ -225,6 +225,117 @@
                     </div>
                 </article>
             </section>
+
+            <section class="dashboard-panel circle-panel" id="amigos">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Ciclo social</p>
+                        <h2>Ciclo de estudos</h2>
+                    </div>
+
+                    <details class="circle-compose">
+                        <summary class="circle-compose-button" aria-label="Criar post no ciclo">+</summary>
+                        <form action="{{ route('circle-posts.store') }}" method="POST" class="circle-compose-form">
+                            @csrf
+                            <label>
+                                <span>Titulo</span>
+                                <input type="text" name="title" value="{{ old('title') }}" maxlength="80" placeholder="Uma conquista, duvida ou foco..." required>
+                            </label>
+                            <label>
+                                <span>Texto</span>
+                                <textarea name="body" rows="3" maxlength="200" placeholder="Compartilhe com seu ciclo em ate 200 caracteres." required>{{ old('body') }}</textarea>
+                            </label>
+                            <button type="submit" class="primary-button full-width">Publicar</button>
+                        </form>
+                    </details>
+                </div>
+
+                <div class="circle-layout">
+                    <aside class="circle-side">
+                        <div class="circle-box">
+                            <p class="eyebrow">Convites</p>
+                            @forelse ($circle['pending_requests'] as $friendship)
+                                <article class="circle-person">
+                                    <span class="friend-avatar">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($friendship->requester->displayName(), 0, 1)) }}</span>
+                                    <div>
+                                        <strong>{{ $friendship->requester->displayName() }}</strong>
+                                        <small>{{ '@'.$friendship->requester->username }}</small>
+                                    </div>
+                                    <form action="{{ route('friendships.accept', $friendship) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="mini-button">Aceitar</button>
+                                    </form>
+                                </article>
+                            @empty
+                                <p class="muted">Nenhum convite pendente.</p>
+                            @endforelse
+                        </div>
+
+                        <div class="circle-box">
+                            <p class="eyebrow">Sugestoes</p>
+                            @forelse ($circle['suggestions'] as $suggestion)
+                                <article class="circle-person">
+                                    <span class="friend-avatar">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($suggestion->displayName(), 0, 1)) }}</span>
+                                    <div>
+                                        <strong>{{ $suggestion->displayName() }}</strong>
+                                        <small>{{ '@'.$suggestion->username }}</small>
+                                    </div>
+                                    <form action="{{ route('friendships.store', $suggestion) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="mini-button">Adicionar</button>
+                                    </form>
+                                </article>
+                            @empty
+                                <p class="muted">Sem sugestoes novas por enquanto.</p>
+                            @endforelse
+                        </div>
+                    </aside>
+
+                    <div class="circle-feed">
+                        @forelse ($circle['feed'] as $item)
+                            @if ($item['type'] === 'post')
+                                @php($post = $item['post'])
+                                <article class="circle-post">
+                                    <div class="feed-meta">
+                                        <strong>{{ $post->user->displayName() }} publicou: {{ $post->title }}</strong>
+                                        <span>{{ $post->created_at->diffForHumans() }}</span>
+                                    </div>
+                                    <p>{{ $post->body }}</p>
+
+                                    <div class="circle-replies">
+                                        @foreach ($post->replies->take(3) as $reply)
+                                            <div class="circle-reply">
+                                                <strong>{{ $reply->user->displayName() }}</strong>
+                                                <span>{{ $reply->body }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    <form action="{{ route('circle-posts.replies.store', $post) }}" method="POST" class="circle-reply-form">
+                                        @csrf
+                                        <input type="text" name="body" maxlength="200" placeholder="Responder em ate 200 caracteres..." required>
+                                        <button type="submit" class="mini-button">Responder</button>
+                                    </form>
+                                </article>
+                            @else
+                                @php($session = $item['session'])
+                                <article class="circle-post circle-session">
+                                    <div class="feed-meta">
+                                        <strong>{{ $session->user->displayName() }} comecou a estudar {{ $session->subject }}</strong>
+                                        <span>{{ $session->started_at->diffForHumans() }}</span>
+                                    </div>
+                                    <p>{{ $session->ended_at ? 'Sessao finalizada: '.$session->duration_label : 'Sessao em andamento agora.' }}</p>
+                                </article>
+                            @endif
+                        @empty
+                            <div class="empty-state">
+                                <strong>Seu ciclo ainda esta quieto.</strong>
+                                <p>Publique uma novidade ou adicione amigos para ver atividades aqui.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
         </main>
 
         <aside class="dashboard-rail">
@@ -381,31 +492,6 @@
                 </div>
             </section>
 
-            <section class="dashboard-panel friends-panel" id="amigos">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Amigos online</p>
-                        <h2>Rede em foco</h2>
-                    </div>
-
-                    <a href="#" class="mini-link">Ver todos</a>
-                </div>
-
-                <div class="friend-list">
-                    @foreach ($friends as $friend)
-                        <article class="friend-item">
-                            <div class="friend-avatar-wrap">
-                                <span class="friend-avatar">{{ $friend['avatar'] }}</span>
-                                <span class="friend-dot"></span>
-                            </div>
-                            <div class="friend-copy">
-                                <strong>{{ $friend['name'] }}</strong>
-                                <p>{{ $friend['status'] }}</p>
-                            </div>
-                        </article>
-                    @endforeach
-                </div>
-            </section>
         </aside>
     </div>
 @endsection

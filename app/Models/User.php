@@ -59,6 +59,60 @@ class User extends Authenticatable
         return $this->hasMany(DailyLog::class);
     }
 
+    public function sentFriendships(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'requester_id');
+    }
+
+    public function receivedFriendships(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'addressee_id');
+    }
+
+    public function circlePosts(): HasMany
+    {
+        return $this->hasMany(CirclePost::class);
+    }
+
+    public function circlePostReplies(): HasMany
+    {
+        return $this->hasMany(CirclePostReply::class);
+    }
+
+    public function acceptedFriendIds()
+    {
+        $sent = $this->sentFriendships()
+            ->where('status', Friendship::STATUS_ACCEPTED)
+            ->pluck('addressee_id');
+        $received = $this->receivedFriendships()
+            ->where('status', Friendship::STATUS_ACCEPTED)
+            ->pluck('requester_id');
+
+        return $sent->merge($received)->unique()->values();
+    }
+
+    public function isCircleMemberWith(User $user): bool
+    {
+        if ($this->id === $user->id) {
+            return true;
+        }
+
+        return Friendship::query()
+            ->where('status', Friendship::STATUS_ACCEPTED)
+            ->where(function ($query) use ($user) {
+                $query
+                    ->where(function ($query) use ($user) {
+                        $query->where('requester_id', $this->id)
+                            ->where('addressee_id', $user->id);
+                    })
+                    ->orWhere(function ($query) use ($user) {
+                        $query->where('requester_id', $user->id)
+                            ->where('addressee_id', $this->id);
+                    });
+            })
+            ->exists();
+    }
+
     public function displayName(): string
     {
         return $this->display_name ?: $this->username;

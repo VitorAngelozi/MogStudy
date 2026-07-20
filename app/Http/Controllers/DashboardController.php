@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CirclePost;
 use App\Models\DailyLog;
+use App\Models\Friendship;
+use App\Models\StudySession;
 use App\Models\User;
 use App\Support\ActivityHeatmap;
 use App\Support\StudySubjectCards;
@@ -79,7 +82,7 @@ class DashboardController extends Controller
         $profile = $this->buildProfileSummary($user, $totals);
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
         $achievements = $this->buildAchievements($recentLogs);
-        $friends = $this->buildFriends();
+        $circle = $this->buildCircle($user);
         $sidebarItems = $this->buildSidebarItems($user);
         $metrics = $this->buildMetrics($totals, $studySubjects->count());
         $currentSessionBaseSeconds = $currentSession
@@ -116,7 +119,7 @@ class DashboardController extends Controller
             'subjects' => $subjects,
             'recentActivity' => $recentActivity,
             'achievements' => $achievements,
-            'friends' => $friends,
+            'circle' => $circle,
             'streak' => $this->buildStreak($user->id),
             'greeting' => $this->greetingForHour(now()->hour),
             'heroSubtitle' => $currentSession
@@ -277,6 +280,71 @@ class DashboardController extends Controller
         return array_slice($items, 0, 4);
     }
 
+    private function buildCircle(User $user): array
+    {
+        $friendIds = $user->acceptedFriendIds();
+        $circleUserIds = $friendIds->push($user->id)->unique()->values();
+
+        $posts = CirclePost::query()
+            ->with(['user', 'replies.user'])
+            ->whereIn('user_id', $circleUserIds)
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        $friendSessions = StudySession::query()
+            ->with('user')
+            ->whereIn('user_id', $friendIds)
+            ->latest('started_at')
+            ->limit(5)
+            ->get();
+
+        $feed = collect()
+            ->merge($posts->map(fn ($post) => [
+                'type' => 'post',
+                'sort_at' => $post->created_at,
+                'post' => $post,
+            ]))
+            ->merge($friendSessions->map(fn ($session) => [
+                'type' => 'session',
+                'sort_at' => $session->started_at,
+                'session' => $session,
+            ]))
+            ->sortByDesc(fn ($item) => $item['sort_at']?->timestamp ?? 0)
+            ->take(8)
+            ->values();
+
+        $pendingRequests = Friendship::query()
+            ->with('requester')
+            ->where('addressee_id', $user->id)
+            ->where('status', Friendship::STATUS_PENDING)
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        $connectedIds = Friendship::query()
+            ->where('requester_id', $user->id)
+            ->orWhere('addressee_id', $user->id)
+            ->get()
+            ->flatMap(fn ($friendship) => [$friendship->requester_id, $friendship->addressee_id])
+            ->push($user->id)
+            ->unique()
+            ->values();
+
+        $suggestions = User::query()
+            ->whereNotIn('id', $connectedIds)
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        return [
+            'friend_ids' => $friendIds,
+            'feed' => $feed,
+            'pending_requests' => $pendingRequests,
+            'suggestions' => $suggestions,
+        ];
+    }
+
     private function finishedSecondsTodayForCurrentSubject(User $user, $currentSession, string $today): int
     {
         return (int) $user->studySessions()
@@ -314,15 +382,6 @@ class DashboardController extends Controller
                 'when' => 'ha 5d',
                 'tone' => 'sun',
             ],
-        ];
-    }
-
-    private function buildFriends(): array
-    {
-        return [
-            ['name' => 'Lucas', 'status' => 'Estudando Java', 'online' => true, 'avatar' => 'L'],
-            ['name' => 'Maria', 'status' => 'Acudando SQL', 'online' => true, 'avatar' => 'M'],
-            ['name' => 'Pedro', 'status' => 'Em uma sessao de foco', 'online' => true, 'avatar' => 'P'],
         ];
     }
 
