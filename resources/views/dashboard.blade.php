@@ -225,43 +225,6 @@
                     </div>
                 </article>
             </section>
-
-            <section class="dashboard-panel projects-panel" id="projetos">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Projetos</p>
-                        <h2>Edite seu perfil e acompanhe iniciativas</h2>
-                    </div>
-
-                    <a href="{{ route('profile.show', $user) }}" class="mini-link">Abrir perfil</a>
-                </div>
-
-                <div class="projects-grid">
-                    <article class="mini-panel">
-                        <div class="section-heading section-heading-tight">
-                            <div>
-                                <p class="eyebrow">Projetos</p>
-                                <h3>Em andamento</h3>
-                            </div>
-                        </div>
-
-                        <div class="project-list">
-                            <div class="project-card">
-                                <strong>MogStudy redesign</strong>
-                                <p>Dashboard escuro com foco em consistencia e aprendizado visual.</p>
-                            </div>
-                            <div class="project-card">
-                                <strong>Timer de foco</strong>
-                                <p>Widget de sessao com inicio, pausa visual e finalizacao.</p>
-                            </div>
-                            <div class="project-card">
-                                <strong>Feed diario</strong>
-                                <p>Registros do dia organizados no estilo de contribuicoes.</p>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-            </section>
         </main>
 
         <aside class="dashboard-rail">
@@ -357,31 +320,39 @@
             <section class="dashboard-panel goal-panel" id="metas">
                 <div class="section-heading">
                     <div>
-                        <p class="eyebrow">Meta diaria</p>
+                        <p class="eyebrow">{{ $goal['title'] }}</p>
                         <h2>Foco de hoje</h2>
                     </div>
 
-                    <a href="#anotacoes" class="mini-link">Editar meta</a>
+                    <a href="{{ route('study-subjects.index') }}" class="mini-link">Editar metas</a>
                 </div>
 
-                <div class="goal-grid">
-                    <div class="goal-ring" style="--progress: {{ $goal['progress'] }}%">
-                        <div class="goal-ring-inner">
-                            <strong>{{ $goal['done_label'] }}</strong>
-                            <span>de {{ $goal['target_label'] }}</span>
+                @if ($goal['has_goal'])
+                    <div class="goal-grid">
+                        <div class="goal-ring" style="--progress: {{ $goal['progress'] }}%">
+                            <div class="goal-ring-inner">
+                                <strong>{{ $goal['done_label'] }}</strong>
+                                <span>de {{ $goal['target_label'] }}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="goal-copy">
-                        <strong>Faltam {{ $goal['remaining_label'] }}</strong>
-                        <p>Mantenha o foco e complete sua meta de hoje.</p>
-                        <div class="goal-bars" aria-hidden="true">
-                            @foreach ($goal['bars'] as $bar)
-                                <span style="height: {{ $bar * 2 }}px"></span>
-                            @endforeach
+                        <div class="goal-copy">
+                            <strong>Faltam {{ $goal['remaining_label'] }}</strong>
+                            <p>Soma das metas semanais de {{ $goal['subjects_count'] }} materia{{ $goal['subjects_count'] === 1 ? '' : 's' }}.</p>
+                            <div class="goal-bars" aria-hidden="true">
+                                @foreach ($goal['bars'] as $bar)
+                                    <span style="height: {{ $bar * 2 }}px"></span>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
-                </div>
+                @else
+                    <div class="empty-state">
+                        <strong>Nenhuma meta semanal definida.</strong>
+                        <p>Cadastre uma meta nas materias para acompanhar o foco da semana.</p>
+                        <a href="{{ route('study-subjects.index') }}" class="secondary-button">Editar materias</a>
+                    </div>
+                @endif
             </section>
 
             <section class="dashboard-panel achievements-panel" id="conquistas">

@@ -391,12 +391,6 @@ button {
 .timer-subject,
 .timer-actions,
 .quick-note-row,
-.projects-grid,
-.project-card {
-    display: flex;
-    gap: 12px;
-}
-
 .profile-level-head,
 .section-heading,
 .feed-meta,
@@ -732,7 +726,6 @@ button {
 .heatmap-panel,
 .activity-panel,
 .subjects-panel,
-.projects-panel,
 .timer-panel,
 .goal-panel,
 .achievements-panel,
@@ -934,8 +927,7 @@ button {
 }
 
 .activity-panel,
-.subjects-panel,
-.projects-panel {
+.subjects-panel {
     padding: 18px;
 }
 
@@ -1536,31 +1528,6 @@ textarea {
 
 .subjects-empty {
     grid-column: 1 / -1;
-}
-
-.project-list {
-    display: grid;
-    gap: 12px;
-}
-
-.project-card {
-    padding: 14px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(255, 255, 255, 0.02);
-    flex-direction: column;
-    gap: 8px;
-}
-
-.project-card p {
-    margin: 0;
-    color: var(--muted);
-}
-
-.projects-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: 14px;
 }
 
 .quick-start-form {
@@ -2229,7 +2196,6 @@ textarea {
 [data-theme="light"] .feed-item,
 [data-theme="light"] .subject-row,
 [data-theme="light"] .subject-editor-form,
-[data-theme="light"] .project-card,
 [data-theme="light"] .empty-state {
     background: rgba(255, 255, 255, 0.58);
     border-color: rgba(31, 45, 71, 0.1);
@@ -2415,7 +2381,6 @@ textarea {
     }
 
     .dashboard-split,
-    .projects-grid,
     .subject-card-grid,
     .metrics-grid,
     .feature-grid,

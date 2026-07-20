@@ -25,7 +25,6 @@ class StudySubjectCards
                     'photo_url' => $subject->photo_path ? asset('storage/'.$subject->photo_path) : null,
                     'seconds' => $seconds,
                     'hours_label' => $this->formatStudySecondsAsHours($seconds),
-                    'goal_period' => $subject->goal_period,
                     'goal_minutes' => $subject->goal_minutes,
                     'goal_value' => $subject->goal_minutes ? $this->formatGoalValue((int) $subject->goal_minutes) : '',
                     'goal_unit' => $subject->goal_minutes && $subject->goal_minutes % 60 === 0 ? 'hours' : 'minutes',
@@ -70,9 +69,7 @@ class StudySubjectCards
             return $totalSeconds > 0 ? (int) round(($totalSeconds / $maxSeconds) * 100) : 0;
         }
 
-        $periodSeconds = $subject->goal_period === 'weekly'
-            ? (int) ($subject->duration_seconds_week ?? 0)
-            : (int) ($subject->duration_seconds_today ?? 0);
+        $periodSeconds = (int) ($subject->duration_seconds_week ?? 0);
 
         return min(100, (int) round((intdiv($periodSeconds, 60) / max(1, (int) $subject->goal_minutes)) * 100));
     }
@@ -83,9 +80,7 @@ class StudySubjectCards
             return 'Sem meta definida';
         }
 
-        $period = $subject->goal_period === 'weekly' ? 'semana' : 'dia';
-
-        return 'Meta: '.$this->formatMinutesAsHours((int) $subject->goal_minutes).' por '.$period;
+        return 'Meta: '.$this->formatMinutesAsHours((int) $subject->goal_minutes).' por semana';
     }
 
     private function formatGoalValue(int $minutes): string

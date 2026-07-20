@@ -61,7 +61,6 @@ class StudySubjectController extends Controller
             'description' => ['nullable', 'string', 'max:240'],
             'goal_value' => ['nullable', 'numeric', 'min:0'],
             'goal_unit' => ['nullable', Rule::in(['minutes', 'hours'])],
-            'goal_period' => ['nullable', Rule::in(['daily', 'weekly'])],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'name.required' => 'Digite o nome da materia.',
@@ -81,7 +80,7 @@ class StudySubjectController extends Controller
             'user_id' => $request->user()->id,
             'name' => $data['name'],
             'description' => isset($data['description']) ? trim($data['description']) ?: null : null,
-            'goal_period' => $goalMinutes ? ($data['goal_period'] ?? 'daily') : null,
+            'goal_period' => $goalMinutes ? 'weekly' : null,
             'goal_minutes' => $goalMinutes,
             'photo_path' => $photoPath,
         ]);
@@ -110,7 +109,6 @@ class StudySubjectController extends Controller
             'description' => ['nullable', 'string', 'max:240'],
             'goal_value' => ['nullable', 'numeric', 'min:0'],
             'goal_unit' => ['nullable', Rule::in(['minutes', 'hours'])],
-            'goal_period' => ['nullable', Rule::in(['daily', 'weekly'])],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'name.required' => 'Digite o nome da materia.',
@@ -122,12 +120,11 @@ class StudySubjectController extends Controller
         ]);
 
         $goalMinutes = $this->normalizeGoalMinutes($data['goal_value'] ?? null, $data['goal_unit'] ?? null);
-        $goalPeriod = $goalMinutes ? ($data['goal_period'] ?? 'daily') : null;
 
         $updates = [
             'name' => $data['name'],
             'description' => isset($data['description']) ? trim($data['description']) ?: null : null,
-            'goal_period' => $goalPeriod,
+            'goal_period' => $goalMinutes ? 'weekly' : null,
             'goal_minutes' => $goalMinutes,
         ];
 

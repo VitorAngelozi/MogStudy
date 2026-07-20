@@ -194,7 +194,7 @@ class MogStudyFlowTest extends TestCase
         }
     }
 
-    public function test_daily_goal_sums_finished_sessions_from_all_subjects(): void
+    public function test_dashboard_today_summary_sums_finished_sessions_from_all_subjects(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
 
@@ -221,7 +221,8 @@ class MogStudyFlowTest extends TestCase
                 ->assertOk()
                 ->assertSeeText('1h20 hoje')
                 ->assertSeeText('1h20')
-                ->assertSeeText('de 6h');
+                ->assertSeeText('Nenhuma meta semanal definida.')
+                ->assertDontSeeText('de 6h');
         } finally {
             Carbon::setTestNow();
         }
@@ -339,7 +340,6 @@ class MogStudyFlowTest extends TestCase
             'description' => 'SQL e modelagem.',
             'goal_value' => '90',
             'goal_unit' => 'minutes',
-            'goal_period' => 'weekly',
             'photo' => UploadedFile::fake()->image('database.png')->size(256),
         ])->assertRedirect(route('study-subjects.index'));
 
@@ -432,14 +432,13 @@ class MogStudyFlowTest extends TestCase
             'description' => 'Arquitetura e testes.',
             'goal_value' => '1.5',
             'goal_unit' => 'hours',
-            'goal_period' => 'daily',
             'photo' => UploadedFile::fake()->image('laravel.png')->size(512),
         ])->assertRedirect(route('dashboard'));
 
         $subject->refresh();
 
         $this->assertSame('Laravel Avancado', $subject->name);
-        $this->assertSame('daily', $subject->goal_period);
+        $this->assertSame('weekly', $subject->goal_period);
         $this->assertSame(90, $subject->goal_minutes);
         $this->assertNotNull($subject->photo_path);
         Storage::disk('public')->assertExists($subject->photo_path);
@@ -552,7 +551,20 @@ class MogStudyFlowTest extends TestCase
         $this->assertNull($subject->refresh()->photo_path);
     }
 
-    public function test_subject_dashboard_progress_uses_daily_goal_when_defined(): void
+    public function test_study_subjects_page_only_renders_weekly_goal_fields(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('study-subjects.index'))
+            ->assertOk()
+            ->assertSeeText('Meta semanal')
+            ->assertDontSeeText('Periodo')
+            ->assertDontSee('<option value="daily"', false)
+            ->assertDontSee('<option value="weekly"', false);
+    }
+
+    public function test_subject_dashboard_progress_uses_weekly_goal_when_defined(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
 
@@ -561,7 +573,7 @@ class MogStudyFlowTest extends TestCase
             $subject = StudySubject::create([
                 'user_id' => $user->id,
                 'name' => 'Laravel',
-                'goal_period' => 'daily',
+                'goal_period' => 'weekly',
                 'goal_minutes' => 120,
             ]);
 
@@ -577,11 +589,119 @@ class MogStudyFlowTest extends TestCase
             $this->actingAs($user)
                 ->get(route('dashboard'))
                 ->assertOk()
-                ->assertSeeText('Meta: 2h por dia')
+                ->assertSeeText('Meta: 2h por semana')
                 ->assertSeeText('50%');
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_dashboard_does_not_render_projects_panel(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSeeText('Projetos')
+            ->assertDontSeeText('MogStudy redesign')
+            ->assertDontSeeText('Timer de foco')
+            ->assertDontSeeText('Feed diario');
+    }
+
+    public function test_dashboard_weekly_focus_sums_subject_goals_and_week_progress(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-18 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $laravel = StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'Laravel',
+                'goal_period' => 'weekly',
+                'goal_minutes' => 120,
+            ]);
+            $sql = StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'SQL',
+                'goal_period' => 'weekly',
+                'goal_minutes' => 60,
+            ]);
+            StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'Sem meta',
+            ]);
+
+            $this->createFinishedStudySession($user, '2026-07-16 09:00:00', 45, $laravel);
+            $this->createFinishedStudySession($user, '2026-07-18 10:00:00', 30, $sql);
+            $this->createFinishedStudySession($user, '2026-07-09 10:00:00', 90, $sql);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSeeText('Metas semanais')
+                ->assertSeeText('1h15')
+                ->assertSeeText('de 3h')
+                ->assertSeeText('Faltam 1h45')
+                ->assertSeeText('Soma das metas semanais de 2 materias.');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_weekly_focus_shows_empty_state_without_subject_goals(): void
+    {
+        $user = User::factory()->create();
+        StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Laravel',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSeeText('Nenhuma meta semanal definida.')
+            ->assertDontSeeText('Faltam 6h');
+    }
+
+    public function test_daily_subject_goals_are_converted_to_weekly_goals(): void
+    {
+        $user = User::factory()->create();
+        $daily = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Diaria antiga',
+            'goal_period' => 'daily',
+            'goal_minutes' => 120,
+        ]);
+        $weekly = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Semanal existente',
+            'goal_period' => 'weekly',
+            'goal_minutes' => 90,
+        ]);
+        $withoutGoal = StudySubject::create([
+            'user_id' => $user->id,
+            'name' => 'Sem meta',
+        ]);
+
+        $migration = require database_path('migrations/2026_07_19_000006_convert_daily_subject_goals_to_weekly.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('study_subjects', [
+            'id' => $daily->id,
+            'goal_period' => 'weekly',
+            'goal_minutes' => 840,
+        ]);
+        $this->assertDatabaseHas('study_subjects', [
+            'id' => $weekly->id,
+            'goal_period' => 'weekly',
+            'goal_minutes' => 90,
+        ]);
+        $this->assertDatabaseHas('study_subjects', [
+            'id' => $withoutGoal->id,
+            'goal_period' => null,
+            'goal_minutes' => null,
+        ]);
     }
 
     public function test_user_cannot_create_duplicate_study_subject_name(): void

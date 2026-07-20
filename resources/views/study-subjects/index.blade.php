@@ -62,7 +62,7 @@
 
                     <div class="subject-goal-fields">
                         <label>
-                            <span>Meta</span>
+                            <span>Meta semanal</span>
                             <input type="number" name="goal_value" value="{{ old('goal_value') }}" min="0" step="0.25" placeholder="Ex: 2">
                         </label>
 
@@ -74,13 +74,6 @@
                             </select>
                         </label>
 
-                        <label>
-                            <span>Periodo</span>
-                            <select name="goal_period">
-                                <option value="daily" @selected(old('goal_period', 'daily') === 'daily')>Diaria</option>
-                                <option value="weekly" @selected(old('goal_period') === 'weekly')>Semanal</option>
-                            </select>
-                        </label>
                     </div>
 
                     <button type="submit" class="primary-button full-width">Criar materia</button>
@@ -190,7 +183,7 @@
 
                             <div class="subject-goal-fields">
                                 <label>
-                                    <span>Meta</span>
+                                    <span>Meta semanal</span>
                                     <input type="number" name="goal_value" value="{{ old('editing_subject_id') == $subject['id'] ? old('goal_value', $subject['goal_value']) : $subject['goal_value'] }}" min="0" step="0.25" placeholder="Ex: 2">
                                 </label>
 
@@ -203,14 +196,6 @@
                                     </select>
                                 </label>
 
-                                <label>
-                                    <span>Periodo</span>
-                                    <select name="goal_period">
-                                        @php($goalPeriod = old('editing_subject_id') == $subject['id'] ? old('goal_period', $subject['goal_period'] ?? 'daily') : ($subject['goal_period'] ?? 'daily'))
-                                        <option value="daily" @selected($goalPeriod === 'daily')>Diaria</option>
-                                        <option value="weekly" @selected($goalPeriod === 'weekly')>Semanal</option>
-                                    </select>
-                                </label>
                             </div>
 
                             <button type="submit" class="secondary-button full-width">Salvar materia</button>

@@ -75,7 +75,7 @@ class DashboardController extends Controller
         $subjectCards = app(StudySubjectCards::class);
         $subjects = $subjectCards->build($subjectCards->sortByRecentActivity($studySubjects)->take(3));
         $heatmap = app(ActivityHeatmap::class)->build($user->id);
-        $goal = $this->buildGoal($totals['seconds_today']);
+        $goal = $this->buildGoal($studySubjects);
         $profile = $this->buildProfileSummary($user, $totals);
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
         $achievements = $this->buildAchievements($recentLogs);
@@ -157,20 +157,28 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildGoal(int $secondsToday): array
+    private function buildGoal($studySubjects): array
     {
-        $targetSeconds = 360 * 60;
-        $progress = min(100, (int) round(($secondsToday / max(1, $targetSeconds)) * 100));
+        $subjectsWithGoals = $studySubjects->filter(fn ($subject) => (int) ($subject->goal_minutes ?? 0) > 0);
+        $targetMinutes = (int) $subjectsWithGoals->sum(fn ($subject) => (int) $subject->goal_minutes);
+        $doneSeconds = (int) $subjectsWithGoals->sum(fn ($subject) => (int) ($subject->duration_seconds_week ?? 0));
+        $targetSeconds = $targetMinutes * 60;
+        $remainingSeconds = max(0, $targetSeconds - $doneSeconds);
+        $progress = $targetSeconds > 0
+            ? min(100, (int) round(($doneSeconds / $targetSeconds) * 100))
+            : 0;
 
         return [
-            'title' => 'Meta diaria',
-            'done_minutes' => intdiv($secondsToday, 60),
-            'target_minutes' => 360,
-            'remaining_minutes' => intdiv(max(0, $targetSeconds - $secondsToday), 60),
+            'title' => 'Metas semanais',
+            'has_goal' => $targetMinutes > 0,
+            'done_minutes' => intdiv($doneSeconds, 60),
+            'target_minutes' => $targetMinutes,
+            'remaining_minutes' => intdiv($remainingSeconds, 60),
             'progress' => $progress,
-            'done_label' => $this->formatSecondsAsHours($secondsToday),
-            'target_label' => $this->formatMinutesAsHours(360),
-            'remaining_label' => $this->formatSecondsAsHours(max(0, $targetSeconds - $secondsToday)),
+            'done_label' => $this->formatSecondsAsHours($doneSeconds),
+            'target_label' => $this->formatMinutesAsHours($targetMinutes),
+            'remaining_label' => $this->formatSecondsAsHours($remainingSeconds),
+            'subjects_count' => $subjectsWithGoals->count(),
             'bars' => [2, 4, 6, 7, 10, 14, 8, 11, 15, 9, 12, 16, 7, 5, 4, 10, 13, 6, 9, 12, 11, 7, 5, 3],
         ];
     }
@@ -215,7 +223,6 @@ class DashboardController extends Controller
             ['label' => 'Inicio', 'href' => '#inicio', 'icon' => 'home', 'active' => true],
             ['label' => 'Materias', 'href' => route('study-subjects.index'), 'icon' => 'book', 'active' => false],
             ['label' => 'Sessoes', 'href' => '#sessoes', 'icon' => 'clock', 'active' => false],
-            ['label' => 'Projetos', 'href' => '#projetos', 'icon' => 'folder', 'active' => false],
             ['label' => 'Anotacoes', 'href' => '#anotacoes', 'icon' => 'notes', 'active' => false],
             ['label' => 'Metas', 'href' => '#metas', 'icon' => 'target', 'active' => false],
             ['label' => 'Conquistas', 'href' => '#conquistas', 'icon' => 'trophy', 'active' => false],
