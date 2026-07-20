@@ -4,6 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\CirclePost;
 use App\Models\Friendship;
+use App\Models\StudyFocusParticipation;
+use App\Models\StudyFocusRoom;
+use App\Models\StudyGroup;
+use App\Models\StudyGroupMember;
+use App\Models\StudyRoom;
 use App\Models\StudySession;
 use App\Models\StudySubject;
 use App\Models\User;
@@ -22,6 +27,9 @@ class MogStudyFlowTest extends TestCase
     public function test_guest_is_redirected_from_dashboard(): void
     {
         $this->get(route('dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->get(route('study-rooms.index'))
             ->assertRedirect(route('login'));
     }
 
@@ -102,6 +110,493 @@ class MogStudyFlowTest extends TestCase
 
         $this->assertNotNull($session->ended_at);
         $this->assertGreaterThanOrEqual(1, $session->duration_seconds);
+    }
+
+    public function test_user_can_create_study_group_and_becomes_owner(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('study-groups.store'), [
+            'name' => 'Medicina - UFMS',
+            'description' => 'Grupo para vestibulandos de medicina.',
+            'visibility' => 'public',
+        ])->assertRedirect();
+
+        $group = StudyGroup::query()->firstOrFail();
+
+        $this->assertSame($user->id, $group->owner_id);
+        $this->assertSame('Medicina - UFMS', $group->name);
+        $this->assertSame(8, strlen($group->code));
+        $this->assertDatabaseHas('study_group_members', [
+            'study_group_id' => $group->id,
+            'user_id' => $user->id,
+            'role' => StudyGroupMember::ROLE_OWNER,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSeeText('Grupos de estudo')
+            ->assertSee(route('study-groups.index'), false);
+    }
+
+    public function test_dashboard_sidebar_uses_study_groups_instead_of_sessions_item(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSeeText('Grupos de estudo')
+            ->assertSee(route('study-groups.index'), false);
+
+        $this->assertStringNotContainsString('href="#sessoes" class="sidebar-nav-item', $response->getContent());
+    }
+
+    public function test_user_can_create_password_private_group_and_password_is_hashed(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('study-groups.store'), [
+            'name' => 'Med UFMS privado',
+            'description' => 'Grupo fechado com senha.',
+            'visibility' => StudyGroup::VISIBILITY_PASSWORD,
+            'password' => 'ufms2027',
+        ])->assertRedirect();
+
+        $group = StudyGroup::query()->firstOrFail();
+
+        $this->assertSame(StudyGroup::VISIBILITY_PASSWORD, $group->visibility);
+        $this->assertNotSame('ufms2027', $group->password_hash);
+        $this->assertTrue(Hash::check('ufms2027', $group->password_hash));
+    }
+
+    public function test_study_group_search_finds_groups_by_name_and_code(): void
+    {
+        $owner = User::factory()->create();
+        $searcher = User::factory()->create();
+        $publicGroup = $this->createStudyGroupWithOwner($owner, [
+            'name' => 'Med UFMS',
+            'code' => 'MEDUFMS1',
+        ]);
+        $passwordGroup = $this->createStudyGroupWithOwner($owner, [
+            'name' => 'ENEM fechado',
+            'code' => 'ENEMPASS',
+            'visibility' => StudyGroup::VISIBILITY_PASSWORD,
+            'password_hash' => Hash::make('segredo'),
+        ]);
+
+        $this->actingAs($searcher)
+            ->get(route('study-groups.index', ['group_search' => 'ufms']))
+            ->assertOk()
+            ->assertSeeText($publicGroup->name)
+            ->assertSeeText($publicGroup->code);
+
+        $this->actingAs($searcher)
+            ->get(route('study-groups.index', ['group_search' => 'ENEMPASS']))
+            ->assertOk()
+            ->assertSeeText($passwordGroup->name)
+            ->assertSeeText('Privado com senha');
+    }
+
+    public function test_password_private_group_requires_correct_password_to_join(): void
+    {
+        $owner = User::factory()->create();
+        $guest = User::factory()->create();
+        $group = $this->createStudyGroupWithOwner($owner, [
+            'name' => 'Med UFMS privado',
+            'code' => 'PASS2027',
+            'visibility' => StudyGroup::VISIBILITY_PASSWORD,
+            'password_hash' => Hash::make('ufms2027'),
+        ]);
+
+        $this->actingAs($guest)->post(route('study-groups.join', $group), [
+            'password' => 'errada',
+        ])->assertSessionHasErrors('password');
+
+        $this->actingAs($guest)->post(route('study-groups.join', $group), [
+            'password' => 'ufms2027',
+        ])->assertRedirect(route('study-groups.show', $group));
+
+        $this->assertDatabaseHas('study_group_members', [
+            'study_group_id' => $group->id,
+            'user_id' => $guest->id,
+        ]);
+    }
+
+    public function test_user_can_join_public_study_group_by_code_once(): void
+    {
+        $owner = User::factory()->create();
+        $guest = User::factory()->create();
+        $group = StudyGroup::create([
+            'owner_id' => $owner->id,
+            'name' => 'ENEM 2027',
+            'description' => 'Preparacao geral.',
+            'visibility' => StudyGroup::VISIBILITY_PUBLIC,
+            'code' => 'ABC12345',
+            'status' => StudyGroup::STATUS_ACTIVE,
+        ]);
+        StudyGroupMember::create([
+            'study_group_id' => $group->id,
+            'user_id' => $owner->id,
+            'role' => StudyGroupMember::ROLE_OWNER,
+            'joined_at' => now(),
+        ]);
+
+        $this->actingAs($guest)
+            ->get(route('study-groups.show', $group))
+            ->assertOk()
+            ->assertSeeText('ENEM 2027');
+
+        $this->actingAs($guest)
+            ->post(route('study-groups.join-by-code'), ['code' => 'ABC12345'])
+            ->assertRedirect(route('study-groups.show', $group));
+
+        $this->actingAs($guest)
+            ->post(route('study-groups.join', $group))
+            ->assertRedirect(route('study-groups.show', $group));
+
+        $this->assertDatabaseCount('study_group_members', 2);
+        $this->assertDatabaseHas('study_group_members', [
+            'study_group_id' => $group->id,
+            'user_id' => $guest->id,
+            'role' => StudyGroupMember::ROLE_MEMBER,
+        ]);
+    }
+
+    public function test_friends_only_study_group_blocks_non_friends_and_allows_accepted_friends(): void
+    {
+        $owner = User::factory()->create();
+        $friend = User::factory()->create();
+        $outsider = User::factory()->create();
+        $group = StudyGroup::create([
+            'owner_id' => $owner->id,
+            'name' => 'Grupo dos amigos',
+            'description' => 'Foco fechado.',
+            'visibility' => StudyGroup::VISIBILITY_FRIENDS,
+            'code' => 'FRIEND01',
+            'status' => StudyGroup::STATUS_ACTIVE,
+        ]);
+        StudyGroupMember::create([
+            'study_group_id' => $group->id,
+            'user_id' => $owner->id,
+            'role' => StudyGroupMember::ROLE_OWNER,
+            'joined_at' => now(),
+        ]);
+        Friendship::create([
+            'requester_id' => $owner->id,
+            'addressee_id' => $friend->id,
+            'status' => Friendship::STATUS_ACCEPTED,
+        ]);
+
+        $this->actingAs($outsider)
+            ->post(route('study-groups.join', $group))
+            ->assertForbidden();
+
+        $this->actingAs($friend)
+            ->post(route('study-groups.join', $group))
+            ->assertRedirect(route('study-groups.show', $group));
+
+        $this->assertDatabaseHas('study_group_members', [
+            'study_group_id' => $group->id,
+            'user_id' => $friend->id,
+        ]);
+    }
+
+    public function test_owner_can_create_focus_room_and_member_cannot(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $group = $this->createStudyGroupWithOwner($owner);
+        StudyGroupMember::create([
+            'study_group_id' => $group->id,
+            'user_id' => $member->id,
+            'role' => StudyGroupMember::ROLE_MEMBER,
+            'joined_at' => now(),
+        ]);
+
+        $this->actingAs($owner)->post(route('study-groups.focus-rooms.store', $group), [
+            'name' => 'Ciencias da Natureza',
+            'description' => 'Biologia, fisica e quimica.',
+            'icon' => 'book',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('study_focus_rooms', [
+            'study_group_id' => $group->id,
+            'name' => 'Ciencias da Natureza',
+            'position' => 1,
+        ]);
+
+        $this->actingAs($member)->post(route('study-groups.focus-rooms.store', $group), [
+            'name' => 'Redacao',
+            'icon' => 'notes',
+        ])->assertForbidden();
+    }
+
+    public function test_study_group_page_renders_selected_focus_room_inline(): void
+    {
+        $user = User::factory()->create();
+        $group = $this->createStudyGroupWithOwner($user);
+        $room = StudyFocusRoom::create([
+            'study_group_id' => $group->id,
+            'name' => 'Matematica',
+            'description' => 'Canal coletivo para exatas.',
+            'position' => 1,
+            'is_active' => true,
+        ]);
+        StudySubject::create(['user_id' => $user->id, 'name' => 'Algebra']);
+
+        $this->actingAs($user)
+            ->get(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]))
+            ->assertOk()
+            ->assertSeeText('Sala selecionada')
+            ->assertSeeText('Matematica')
+            ->assertSeeText('Materia pessoal')
+            ->assertSeeText('Play / Iniciar estudo')
+            ->assertSee(route('study-groups.focus-rooms.start', [$group, $room]), false);
+    }
+
+    public function test_study_group_page_renders_profile_photos_and_initial_fallbacks(): void
+    {
+        $user = User::factory()->create([
+            'display_name' => 'Dev Foto',
+            'profile_photo_path' => 'profile-photos/dev.png',
+        ]);
+        $memberWithoutPhoto = User::factory()->create([
+            'display_name' => 'Sem Foto',
+            'profile_photo_path' => null,
+        ]);
+        $group = $this->createStudyGroupWithOwner($user);
+        StudyGroupMember::create([
+            'study_group_id' => $group->id,
+            'user_id' => $memberWithoutPhoto->id,
+            'role' => StudyGroupMember::ROLE_MEMBER,
+            'joined_at' => now(),
+        ]);
+        $room = StudyFocusRoom::create([
+            'study_group_id' => $group->id,
+            'name' => 'Matematica',
+            'position' => 1,
+            'is_active' => true,
+        ]);
+        $subject = StudySubject::create(['user_id' => $user->id, 'name' => 'Algebra']);
+        $session = StudySession::create([
+            'user_id' => $user->id,
+            'study_subject_id' => $subject->id,
+            'study_group_id' => $group->id,
+            'study_focus_room_id' => $room->id,
+            'subject' => $subject->name,
+            'started_at' => now()->subMinute(),
+        ]);
+        StudyFocusParticipation::create([
+            'study_focus_room_id' => $room->id,
+            'study_session_id' => $session->id,
+            'user_id' => $user->id,
+            'study_subject_id' => $subject->id,
+            'started_at' => now()->subMinute(),
+            'status' => StudyFocusParticipation::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]))
+            ->assertOk()
+            ->assertSee('src="/storage/profile-photos/dev.png"', false)
+            ->assertSee('alt="Foto de Dev Foto"', false)
+            ->assertSee('<span class="friend-avatar">S</span>', false);
+    }
+
+    public function test_focus_room_show_route_redirects_to_group_with_selected_room(): void
+    {
+        $user = User::factory()->create();
+        $group = $this->createStudyGroupWithOwner($user);
+        $room = StudyFocusRoom::create([
+            'study_group_id' => $group->id,
+            'name' => 'Redacao',
+            'position' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-groups.focus-rooms.show', [$group, $room]))
+            ->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+    }
+
+    public function test_user_starts_focus_study_with_own_subject_and_stop_saves_study_session(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-20 10:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $group = $this->createStudyGroupWithOwner($user);
+            $room = StudyFocusRoom::create([
+                'study_group_id' => $group->id,
+                'name' => 'Ciencias da Natureza',
+                'position' => 1,
+                'is_active' => true,
+            ]);
+            $subject = StudySubject::create([
+                'user_id' => $user->id,
+                'name' => 'Biologia',
+                'goal_period' => 'weekly',
+                'goal_minutes' => 300,
+            ]);
+
+            $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+                'study_subject_id' => $subject->id,
+                'notes' => 'Citologia',
+            ])->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+            $participation = StudyFocusParticipation::query()->firstOrFail();
+            $session = StudySession::query()->firstOrFail();
+            $this->assertSame($session->id, $participation->study_session_id);
+            $this->assertSame($group->id, $session->study_group_id);
+            $this->assertSame($room->id, $session->study_focus_room_id);
+            $this->assertSame($subject->id, $session->study_subject_id);
+            $this->assertNull($session->ended_at);
+
+            Carbon::setTestNow(Carbon::parse('2026-07-20 10:25:00'));
+
+            $this->actingAs($user)->post(route('study-groups.focus-rooms.stop', [$group, $room]))
+                ->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+            $this->assertSame(1500, $session->refresh()->duration_seconds);
+            $this->assertNotNull($session->ended_at);
+            $this->assertSame(1500, $participation->refresh()->duration_seconds);
+            $this->assertSame(StudyFocusParticipation::STATUS_COMPLETED, $participation->status);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_focus_study_rejects_subject_from_another_user_and_second_active_session(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $group = $this->createStudyGroupWithOwner($user);
+        $room = StudyFocusRoom::create([
+            'study_group_id' => $group->id,
+            'name' => 'Matematica',
+            'position' => 1,
+            'is_active' => true,
+        ]);
+        $ownSubject = StudySubject::create(['user_id' => $user->id, 'name' => 'Algebra']);
+        $otherSubject = StudySubject::create(['user_id' => $other->id, 'name' => 'Fisica']);
+
+        $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+            'study_subject_id' => $otherSubject->id,
+        ])->assertSessionHasErrors('study_subject_id');
+
+        $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+            'study_subject_id' => $ownSubject->id,
+        ])->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+        $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+            'study_subject_id' => $ownSubject->id,
+        ])->assertSessionHasErrors('study_subject_id');
+    }
+
+    public function test_stopping_group_study_session_from_dashboard_closes_focus_participation(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-20 11:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $group = $this->createStudyGroupWithOwner($user);
+            $room = StudyFocusRoom::create([
+                'study_group_id' => $group->id,
+                'name' => 'Redacao',
+                'position' => 1,
+                'is_active' => true,
+            ]);
+            $subject = StudySubject::create(['user_id' => $user->id, 'name' => 'Redacao']);
+
+            $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+                'study_subject_id' => $subject->id,
+            ])->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+            $session = StudySession::query()->firstOrFail();
+            $participation = StudyFocusParticipation::query()->firstOrFail();
+
+            Carbon::setTestNow(Carbon::parse('2026-07-20 11:14:00'));
+
+            $this->actingAs($user)->post(route('study-sessions.stop', $session))
+                ->assertRedirect(route('dashboard'));
+
+            $this->assertSame(840, $session->refresh()->duration_seconds);
+            $this->assertSame(840, $participation->refresh()->duration_seconds);
+            $this->assertSame(StudyFocusParticipation::STATUS_COMPLETED, $participation->status);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_paused_group_study_time_does_not_count_as_contribution(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-20 12:00:00'));
+
+        try {
+            $user = User::factory()->create();
+            $group = $this->createStudyGroupWithOwner($user);
+            $room = StudyFocusRoom::create([
+                'study_group_id' => $group->id,
+                'name' => 'Matematica',
+                'position' => 1,
+                'is_active' => true,
+            ]);
+            $subject = StudySubject::create(['user_id' => $user->id, 'name' => 'Algebra']);
+
+            $this->actingAs($user)->post(route('study-groups.focus-rooms.start', [$group, $room]), [
+                'study_subject_id' => $subject->id,
+            ])->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+            $session = StudySession::query()->firstOrFail();
+            $participation = StudyFocusParticipation::query()->firstOrFail();
+
+            Carbon::setTestNow(Carbon::parse('2026-07-20 12:10:00'));
+            $this->actingAs($user)->post(route('study-sessions.pause', $session))
+                ->assertRedirect();
+
+            Carbon::setTestNow(Carbon::parse('2026-07-20 12:30:00'));
+            $this->actingAs($user)->post(route('study-sessions.resume', $session))
+                ->assertRedirect();
+
+            Carbon::setTestNow(Carbon::parse('2026-07-20 12:45:00'));
+            $this->actingAs($user)->post(route('study-groups.focus-rooms.stop', [$group, $room]))
+                ->assertRedirect(route('study-groups.show', ['studyGroup' => $group, 'room' => $room->id]));
+
+            $this->assertSame(1200, $session->refresh()->paused_seconds);
+            $this->assertSame(1500, $session->duration_seconds);
+            $this->assertSame(1200, $participation->refresh()->paused_seconds);
+            $this->assertSame(1500, $participation->duration_seconds);
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSee('25m hoje', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_legacy_study_room_routes_redirect_to_study_groups(): void
+    {
+        $user = User::factory()->create();
+        $room = StudyRoom::create([
+            'owner_id' => $user->id,
+            'name' => 'Sala antiga',
+            'subject' => 'Laravel',
+            'visibility' => StudyRoom::VISIBILITY_PUBLIC,
+            'code' => 'OLDROOM1',
+            'started_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('study-rooms.index'))
+            ->assertRedirect(route('study-groups.index'));
+
+        $this->actingAs($user)
+            ->get(route('study-rooms.show', $room))
+            ->assertRedirect(route('study-groups.show', $room->code));
     }
 
     public function test_stopping_session_saves_only_current_session_duration_not_daily_accumulated_time(): void
@@ -1412,5 +1907,26 @@ class MogStudyFlowTest extends TestCase
             'ended_at' => $startedAt->copy()->addMinutes($minutes),
             'duration_seconds' => $minutes * 60,
         ]);
+    }
+
+    private function createStudyGroupWithOwner(User $owner, array $overrides = []): StudyGroup
+    {
+        $group = StudyGroup::create(array_merge([
+            'owner_id' => $owner->id,
+            'name' => 'Medicina - UFMS',
+            'description' => 'Grupo de estudos.',
+            'visibility' => StudyGroup::VISIBILITY_PUBLIC,
+            'status' => StudyGroup::STATUS_ACTIVE,
+            'code' => 'GROUP'.str_pad((string) random_int(1, 999), 3, '0', STR_PAD_LEFT),
+        ], $overrides));
+
+        StudyGroupMember::create([
+            'study_group_id' => $group->id,
+            'user_id' => $owner->id,
+            'role' => StudyGroupMember::ROLE_OWNER,
+            'joined_at' => now(),
+        ]);
+
+        return $group;
     }
 }

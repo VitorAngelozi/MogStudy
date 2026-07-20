@@ -29,4 +29,9 @@ class StudySubject extends Model
     {
         return $this->hasMany(StudySession::class);
     }
+
+    public function studyFocusParticipations(): HasMany
+    {
+        return $this->hasMany(StudyFocusParticipation::class);
+    }
 }

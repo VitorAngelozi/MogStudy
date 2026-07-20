@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\StudyFocusParticipation;
 use App\Models\StudySession;
 use App\Models\StudySubject;
 use Illuminate\Http\Request;
@@ -72,13 +73,80 @@ class StudySessionController extends Controller
         }
 
         $endedAt = now();
-        $durationSeconds = max(1, (int) round($studySession->started_at->diffInSeconds($endedAt)));
+        $durationSeconds = max(1, $studySession->effectiveElapsedSeconds());
 
         $studySession->forceFill([
             'ended_at' => $endedAt,
+            'paused_at' => null,
             'duration_seconds' => $durationSeconds,
         ])->save();
 
+        StudyFocusParticipation::query()
+            ->where('study_session_id', $studySession->id)
+            ->where('status', StudyFocusParticipation::STATUS_ACTIVE)
+            ->update([
+                'ended_at' => $endedAt,
+                'paused_at' => null,
+                'paused_seconds' => (int) $studySession->paused_seconds,
+                'duration_seconds' => $durationSeconds,
+                'status' => StudyFocusParticipation::STATUS_COMPLETED,
+                'updated_at' => now(),
+            ]);
+
         return redirect()->route('dashboard')->with('status', 'Sessão encerrada e salva no histórico.');
+    }
+
+    public function pause(Request $request, StudySession $studySession)
+    {
+        abort_unless($studySession->user_id === $request->user()->id, 403);
+
+        if ($studySession->ended_at || $studySession->paused_at) {
+            return back();
+        }
+
+        $pausedAt = now();
+
+        $studySession->forceFill([
+            'paused_at' => $pausedAt,
+        ])->save();
+
+        StudyFocusParticipation::query()
+            ->where('study_session_id', $studySession->id)
+            ->where('status', StudyFocusParticipation::STATUS_ACTIVE)
+            ->update([
+                'paused_at' => $pausedAt,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('status', 'Cronometro pausado.');
+    }
+
+    public function resume(Request $request, StudySession $studySession)
+    {
+        abort_unless($studySession->user_id === $request->user()->id, 403);
+
+        if ($studySession->ended_at || ! $studySession->paused_at) {
+            return back();
+        }
+
+        $resumedAt = now();
+        $pauseSeconds = max(0, (int) round($studySession->paused_at->diffInSeconds($resumedAt)));
+        $pausedSeconds = (int) $studySession->paused_seconds + $pauseSeconds;
+
+        $studySession->forceFill([
+            'paused_at' => null,
+            'paused_seconds' => $pausedSeconds,
+        ])->save();
+
+        StudyFocusParticipation::query()
+            ->where('study_session_id', $studySession->id)
+            ->where('status', StudyFocusParticipation::STATUS_ACTIVE)
+            ->update([
+                'paused_at' => null,
+                'paused_seconds' => $pausedSeconds,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('status', 'Cronometro retomado.');
     }
 }

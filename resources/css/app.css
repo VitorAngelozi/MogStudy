@@ -299,11 +299,6 @@ button {
     min-width: 0;
 }
 
-.dashboard-topline {
-    display: flex;
-    justify-content: flex-end;
-}
-
 .sidebar-panel,
 .dashboard-panel,
 .mini-panel,
@@ -649,9 +644,10 @@ button {
 }
 
 .hero-panel-dashboard {
+    position: relative;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 24px;
+    padding: 24px 72px 24px 24px;
     gap: 18px;
 }
 
@@ -659,6 +655,7 @@ button {
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
+    gap: 12px;
     min-width: 220px;
 }
 
@@ -1443,6 +1440,12 @@ textarea {
     z-index: 30;
 }
 
+.hero-friend-bell {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
 .friend-bell summary {
     width: 46px;
     height: 46px;
@@ -2119,6 +2122,496 @@ textarea {
     flex: 1;
 }
 
+.group-session-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.study-rooms-page,
+.study-room-page {
+    padding: 28px 0;
+}
+
+.study-room-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 16px;
+}
+
+.study-room-create-panel,
+.study-room-live-card {
+    align-self: start;
+}
+
+.study-room-form,
+.study-room-list,
+.study-room-participants,
+.study-room-history {
+    display: grid;
+    gap: 12px;
+}
+
+.study-room-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.study-room-card strong,
+.study-room-card small {
+    display: block;
+}
+
+.study-room-card small {
+    margin-top: 3px;
+    color: var(--muted);
+}
+
+.study-room-code {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 12px;
+    color: #d7ffea;
+    background: rgba(76, 227, 160, 0.1);
+    border: 1px solid rgba(76, 227, 160, 0.18);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.study-room-total {
+    display: grid;
+    gap: 4px;
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.study-room-total strong {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1;
+}
+
+.study-room-total span {
+    color: var(--muted);
+}
+
+.study-room-history {
+    margin-top: 18px;
+}
+
+.study-groups-page,
+.study-group-page {
+    display: grid;
+    gap: 22px;
+}
+
+.study-groups-hero {
+    align-items: flex-start;
+}
+
+.study-group-workspace,
+.study-group-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.86fr) minmax(520px, 1.14fr);
+    gap: 22px;
+    align-items: start;
+}
+
+.study-group-main,
+.study-group-side {
+    display: grid;
+    gap: 18px;
+}
+
+.study-group-create-card {
+    max-width: 760px;
+}
+
+.study-group-grid,
+.focus-room-grid,
+.dashboard-group-list,
+.study-group-mini-list,
+.ranking-list,
+.study-group-member-list {
+    display: grid;
+    gap: 12px;
+}
+
+.study-group-card,
+.focus-room-card,
+.dashboard-group-item,
+.study-group-mini,
+.group-active-mini,
+.focus-participant-card,
+.ranking-row,
+.group-active-banner {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 24px;
+    padding: 16px;
+}
+
+.study-group-card,
+.focus-room-card,
+.dashboard-group-item,
+.group-active-banner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+}
+
+.study-group-card:hover,
+.focus-room-card:hover,
+.dashboard-group-item:hover,
+.study-group-mini:hover {
+    border-color: rgba(124, 92, 255, 0.55);
+    transform: translateY(-1px);
+}
+
+.study-group-card strong,
+.focus-room-card strong,
+.dashboard-group-item strong,
+.study-group-mini strong,
+.group-active-mini strong {
+    display: block;
+    color: var(--text);
+}
+
+.study-group-card small,
+.focus-room-card small,
+.dashboard-group-item small,
+.study-group-mini small,
+.ranking-row small,
+.group-active-mini p {
+    color: var(--muted);
+}
+
+.study-group-mark,
+.focus-room-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    display: inline-grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--violet), var(--emerald));
+    box-shadow: 0 18px 35px rgba(124, 92, 255, 0.22);
+}
+
+.focus-room-icon .icon-svg {
+    width: 20px;
+    height: 20px;
+}
+
+.focus-room-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    position: relative;
+}
+
+.focus-room-card.is-muted {
+    opacity: 0.62;
+}
+
+.focus-room-channel.is-selected,
+.focus-inline-panel {
+    border-color: rgba(124, 92, 255, 0.72);
+    background:
+        radial-gradient(circle at top right, rgba(74, 222, 128, 0.14), transparent 36%),
+        linear-gradient(135deg, rgba(124, 92, 255, 0.18), rgba(74, 222, 128, 0.07)),
+        rgba(255, 255, 255, 0.03);
+}
+
+.focus-room-channel.is-selected {
+    box-shadow: inset 4px 0 0 rgba(124, 92, 255, 0.9);
+}
+
+.focus-inline-panel {
+    display: grid;
+    gap: 16px;
+    overflow: hidden;
+}
+
+.compact-stats {
+    margin-top: 0;
+}
+
+.focus-inline-controls {
+    display: grid;
+    gap: 14px;
+}
+
+.focus-participant-list {
+    grid-template-columns: 1fr;
+}
+
+.focus-room-avatars {
+    display: flex;
+    grid-column: 2 / -1;
+    gap: 4px;
+    min-height: 24px;
+}
+
+.focus-room-avatar,
+.ranking-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    color: #fff;
+    background: rgba(124, 92, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 0.72rem;
+    font-weight: 800;
+    object-fit: cover;
+}
+
+.ranking-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 12px;
+}
+
+.study-group-hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.study-group-hero-stats span {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 12px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.group-active-banner {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.group-active-banner h2 {
+    margin: 4px 0;
+}
+
+.group-session-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.group-active-mini {
+    display: grid;
+    gap: 8px;
+}
+
+.focus-participant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+.focus-participant-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.focus-participant-card p {
+    margin: 2px 0;
+    color: var(--muted);
+}
+
+.focus-room-stage-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+    align-items: start;
+}
+
+.focus-room-stage-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.focus-room-stage-pills span {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 12px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.focus-room-stage-grid,
+.focus-room-community-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.focus-stage-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 16px;
+    background: rgba(7, 12, 24, 0.24);
+    min-width: 0;
+}
+
+.focus-control-card {
+    background:
+        linear-gradient(180deg, rgba(124, 92, 255, 0.12), rgba(74, 222, 128, 0.08)),
+        rgba(255, 255, 255, 0.035);
+}
+
+.compact-heading {
+    margin-bottom: 12px;
+}
+
+.compact-heading h3 {
+    margin: 0;
+    color: var(--text);
+}
+
+.compact-empty {
+    padding: 14px;
+    min-height: auto;
+}
+
+.compact-member-list {
+    max-height: 238px;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.focus-admin-details {
+    display: grid;
+    gap: 16px;
+}
+
+.focus-admin-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.focus-admin-summary::-webkit-details-marker {
+    display: none;
+}
+
+.focus-admin-details .study-room-form {
+    margin-top: 16px;
+}
+
+.focus-start-details {
+    display: grid;
+    gap: 14px;
+}
+
+.focus-start-details summary {
+    cursor: pointer;
+    justify-content: center;
+    list-style: none;
+}
+
+.focus-start-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.compact-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: end;
+}
+
+.ranking-row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.ranking-row span {
+    color: var(--violet);
+    font-weight: 800;
+}
+
+.ranking-row .ranking-avatar {
+    color: #fff;
+}
+
+.stacked-actions,
+.compact-password-form {
+    display: grid;
+    gap: 10px;
+}
+
+@media (max-width: 980px) {
+    .study-group-workspace,
+    .study-group-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .focus-room-stage-grid,
+    .focus-room-community-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .compact-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .study-group-card,
+    .focus-room-card,
+    .dashboard-group-item,
+    .group-active-banner {
+        grid-template-columns: 1fr;
+    }
+
+    .study-group-hero-stats {
+        flex-direction: column;
+    }
+
+    .focus-room-stage-header {
+        grid-template-columns: 1fr;
+    }
+
+    .focus-room-stage-pills {
+        justify-content: flex-start;
+    }
+
+    .ranking-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .ranking-avatar {
+        display: none;
+    }
+}
+
 .goal-grid {
     align-items: center;
     gap: 16px;
@@ -2719,6 +3212,12 @@ textarea {
     border-color: rgba(31, 45, 71, 0.12);
 }
 
+[data-theme="light"] .study-room-card,
+[data-theme="light"] .study-room-total {
+    background: rgba(255, 255, 255, 0.58);
+    border-color: rgba(31, 45, 71, 0.1);
+}
+
 [data-theme="light"] .circle-event-icon {
     border-color: rgba(255, 255, 255, 0.94);
 }
@@ -2907,6 +3406,7 @@ textarea {
     }
 
     .dashboard-split,
+    .study-room-workspace,
     .subject-card-grid,
     .metrics-grid,
     .feature-grid,

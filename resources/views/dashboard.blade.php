@@ -139,45 +139,6 @@
         </aside>
 
         <main class="dashboard-main">
-            <div class="dashboard-topline">
-                <details class="friend-bell">
-                    <summary aria-label="Notificacoes de amizade">
-                        @include('partials.dashboard.icon', ['name' => 'bell', 'class' => 'icon-svg'])
-                        @if ($friendNotifications['count'] > 0)
-                            <span>{{ $friendNotifications['count'] }}</span>
-                        @endif
-                    </summary>
-
-                    <div class="friend-bell-menu">
-                        <p class="eyebrow">Amizades</p>
-
-                        @forelse ($friendNotifications['pending_received'] as $friendship)
-                            <article class="friend-notification">
-                                <div>
-                                    <strong>{{ $friendship->requester->displayName() }}</strong>
-                                    <small>enviou um pedido de amizade</small>
-                                </div>
-                                <form action="{{ route('friendships.accept', $friendship) }}" method="POST">
-                                    @csrf
-                                    <button type="submit" class="mini-button">Aceitar</button>
-                                </form>
-                            </article>
-                        @empty
-                            <p class="muted">Nenhum pedido pendente.</p>
-                        @endforelse
-
-                        @foreach ($friendNotifications['accepted_sent'] as $friendship)
-                            <article class="friend-notification friend-notification-muted">
-                                <div>
-                                    <strong>{{ $friendship->addressee->displayName() }}</strong>
-                                    <small>aceitou seu pedido de amizade</small>
-                                </div>
-                            </article>
-                        @endforeach
-                    </div>
-                </details>
-            </div>
-
             <section class="dashboard-panel hero-panel-main hero-panel-dashboard">
                 <div class="hero-copy">
                     <p class="eyebrow">{{ $greeting }}</p>
@@ -189,6 +150,43 @@
                         <span class="hero-chip">{{ $totals['today_label'] }} hoje</span>
                     </div>
                 </div>
+
+                <details class="friend-bell hero-friend-bell">
+                        <summary aria-label="Notificacoes de amizade">
+                            @include('partials.dashboard.icon', ['name' => 'bell', 'class' => 'icon-svg'])
+                            @if ($friendNotifications['count'] > 0)
+                                <span>{{ $friendNotifications['count'] }}</span>
+                            @endif
+                        </summary>
+
+                        <div class="friend-bell-menu">
+                            <p class="eyebrow">Amizades</p>
+
+                            @forelse ($friendNotifications['pending_received'] as $friendship)
+                                <article class="friend-notification">
+                                    <div>
+                                        <strong>{{ $friendship->requester->displayName() }}</strong>
+                                        <small>enviou um pedido de amizade</small>
+                                    </div>
+                                    <form action="{{ route('friendships.accept', $friendship) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="mini-button">Aceitar</button>
+                                    </form>
+                                </article>
+                            @empty
+                                <p class="muted">Nenhum pedido pendente.</p>
+                            @endforelse
+
+                            @foreach ($friendNotifications['accepted_sent'] as $friendship)
+                                <article class="friend-notification friend-notification-muted">
+                                    <div>
+                                        <strong>{{ $friendship->addressee->displayName() }}</strong>
+                                        <small>aceitou seu pedido de amizade</small>
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+                </details>
 
                 <div class="hero-status">
                     <div class="streak-badge">
@@ -457,7 +455,7 @@
                     </div>
 
                     @if ($currentSession)
-                        <span class="status-pill status-pill-live">Ao vivo</span>
+                        <span class="status-pill {{ $currentSession->isPaused() ? '' : 'status-pill-live' }}">{{ $currentSession->isPaused() ? 'Pausado' : 'Ao vivo' }}</span>
                     @else
                         <span class="status-pill">Idle</span>
                     @endif
@@ -467,6 +465,7 @@
                     class="timer-widget"
                     data-study-timer
                     data-started-at="{{ $timer['started_at'] }}"
+                    data-rendered-at="{{ $timer['rendered_at'] }}"
                     data-base-seconds="{{ $timer['base_seconds'] }}"
                     data-elapsed-seconds="{{ $timer['elapsed_seconds'] }}"
                     data-state="{{ $timer['state'] }}"
@@ -481,7 +480,17 @@
                     @if ($currentSession)
                         <p class="muted">Iniciada em {{ $currentSession->started_at->format('d/m/Y H:i') }}</p>
                         <div class="timer-actions">
-                            <button type="button" class="secondary-button" data-timer-pause>Pausar</button>
+                            @if ($currentSession->isPaused())
+                                <form action="{{ route('study-sessions.resume', $currentSession) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="secondary-button">Retomar</button>
+                                </form>
+                            @else
+                                <form action="{{ route('study-sessions.pause', $currentSession) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="secondary-button">Pausar</button>
+                                </form>
+                            @endif
 
                             <form action="{{ route('study-sessions.stop', $currentSession) }}" method="POST">
                                 @csrf
@@ -535,6 +544,49 @@
                             </div>
                         @endif
                     @endif
+                </div>
+            </section>
+
+            <section class="dashboard-panel group-session-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Grupos de estudo</p>
+                        <h2>Estude junto</h2>
+                    </div>
+                    <a href="{{ route('study-groups.index') }}" class="mini-link">Ver todos</a>
+                </div>
+
+                @if ($studyGroups['active_participation'])
+                    @php($activeGroupStudy = $studyGroups['active_participation'])
+                    <article class="group-active-mini">
+                        <span class="status-pill status-pill-live">Ao vivo</span>
+                        <strong>Voce esta estudando {{ $activeGroupStudy->studySubject->name }}</strong>
+                        <p>{{ $activeGroupStudy->focusRoom->name }} · {{ $activeGroupStudy->focusRoom->group->name }}</p>
+                        <a href="{{ route('study-groups.show', ['studyGroup' => $activeGroupStudy->focusRoom->group, 'room' => $activeGroupStudy->focusRoom->id]) }}" class="secondary-button full-width">Abrir sala</a>
+                    </article>
+                @elseif ($studyGroups['groups']->isNotEmpty())
+                    <div class="dashboard-group-list">
+                        @foreach ($studyGroups['groups'] as $groupSummary)
+                            @php($group = $groupSummary['model'])
+                            <a href="{{ route('study-groups.show', $group) }}" class="dashboard-group-item">
+                                <span class="study-group-mark">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($group->name, 0, 1)) }}</span>
+                                <span>
+                                    <strong>{{ $group->name }}</strong>
+                                    <small>{{ $groupSummary['active_count'] }} estudando agora · {{ gmdate('H:i:s', $groupSummary['seconds_today']) }} hoje</small>
+                                </span>
+                            </a>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="empty-state">
+                        <strong>Voce ainda nao participa de nenhum grupo.</strong>
+                        <p>Entre em uma comunidade com pessoas que tem o mesmo objetivo.</p>
+                    </div>
+                @endif
+
+                <div class="group-session-actions">
+                    <a href="{{ route('study-groups.index') }}" class="primary-button full-width">Explorar grupos</a>
+                    <a href="{{ route('study-groups.create') }}" class="secondary-button full-width">Criar grupo</a>
                 </div>
             </section>
 

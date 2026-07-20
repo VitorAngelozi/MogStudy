@@ -36,14 +36,22 @@ timers.forEach((widget) => {
     const valueNode = widget.querySelector('[data-timer-value]');
     const pauseButton = widget.querySelector('[data-timer-pause]');
     const startedAtRaw = widget.dataset.startedAt;
+    const renderedAtRaw = widget.dataset.renderedAt;
     const baseSeconds = Number(widget.dataset.baseSeconds || 0);
     const elapsedSeconds = Number(widget.dataset.elapsedSeconds || 0);
+    const state = widget.dataset.state || 'idle';
 
     if (!valueNode) {
         return;
     }
 
-    if (!startedAtRaw || startedAtRaw === 'null') {
+    if (state === 'paused') {
+        valueNode.textContent = formatElapsed(elapsedSeconds);
+        widget.classList.add('is-paused');
+        return;
+    }
+
+    if (state !== 'running' || !startedAtRaw || startedAtRaw === 'null') {
         valueNode.textContent = valueNode.textContent || formatElapsed(elapsedSeconds);
         if (pauseButton) {
             pauseButton.disabled = true;
@@ -51,14 +59,15 @@ timers.forEach((widget) => {
         return;
     }
 
-    let baseTime = new Date(startedAtRaw).getTime();
+    let baseTime = new Date(renderedAtRaw || startedAtRaw).getTime();
+    const liveBaseSeconds = renderedAtRaw ? elapsedSeconds : baseSeconds;
     let pausedAt = null;
     let paused = false;
     let intervalId = null;
 
     const render = () => {
         const currentBase = paused && pausedAt ? pausedAt : Date.now();
-        const elapsed = baseSeconds + ((currentBase - baseTime) / 1000);
+        const elapsed = liveBaseSeconds + ((currentBase - baseTime) / 1000);
         valueNode.textContent = formatElapsed(elapsed);
     };
 
@@ -350,6 +359,66 @@ document.querySelectorAll('[data-friend-search]').forEach((widget) => {
         event.preventDefault();
         window.clearTimeout(debounceId);
         runSearch();
+    });
+});
+
+document.querySelectorAll('[data-study-group-presence]').forEach((widget) => {
+    const presenceUrl = widget.dataset.presenceUrl;
+    const activeCount = widget.querySelector('[data-presence-active-count]');
+    const secondsToday = widget.querySelector('[data-presence-seconds-today]');
+
+    if (!presenceUrl || !activeCount || !secondsToday) {
+        return;
+    }
+
+    const renderPresence = async () => {
+        try {
+            const response = await fetch(presenceUrl, {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            activeCount.textContent = `${payload.active_count} estudando agora`;
+            secondsToday.textContent = `${formatElapsed(payload.seconds_today)} hoje`;
+        } catch (error) {
+            // Polling is best-effort; the server remains the source of truth.
+        }
+    };
+
+    window.setInterval(renderPresence, 15000);
+});
+
+document.querySelectorAll('[data-focus-room-workspace]').forEach((workspace) => {
+    workspace.querySelectorAll('[data-focus-room-select]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            const roomId = link.dataset.focusRoomId;
+            const panel = workspace.querySelector(`[data-focus-room-panel][data-focus-room-id="${roomId}"]`);
+
+            if (!roomId || !panel) {
+                return;
+            }
+
+            event.preventDefault();
+
+            workspace.querySelectorAll('[data-focus-room-select]').forEach((item) => {
+                item.classList.toggle('is-selected', item === link);
+            });
+
+            workspace.querySelectorAll('[data-focus-room-panel]').forEach((item) => {
+                const isSelected = item === panel;
+                item.hidden = !isSelected;
+                item.classList.toggle('is-active', isSelected);
+            });
+
+            window.history.replaceState({}, '', link.href);
+        });
     });
 });
 

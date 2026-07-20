@@ -6,24 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class StudySession extends Model
+class StudyFocusParticipation extends Model
 {
     use HasFactory;
 
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const STATUS_COMPLETED = 'completed';
+
     protected $fillable = [
+        'study_focus_room_id',
+        'study_session_id',
         'user_id',
         'study_subject_id',
-        'study_group_id',
-        'study_focus_room_id',
-        'subject',
-        'notes',
-        'source_type',
-        'source_id',
         'started_at',
         'ended_at',
         'paused_at',
         'paused_seconds',
         'duration_seconds',
+        'status',
     ];
 
     protected function casts(): array
@@ -37,6 +40,16 @@ class StudySession extends Model
         ];
     }
 
+    public function focusRoom(): BelongsTo
+    {
+        return $this->belongsTo(StudyFocusRoom::class, 'study_focus_room_id');
+    }
+
+    public function studySession(): BelongsTo
+    {
+        return $this->belongsTo(StudySession::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -47,21 +60,9 @@ class StudySession extends Model
         return $this->belongsTo(StudySubject::class);
     }
 
-    public function studyGroup(): BelongsTo
-    {
-        return $this->belongsTo(StudyGroup::class);
-    }
-
-    public function studyFocusRoom(): BelongsTo
-    {
-        return $this->belongsTo(StudyFocusRoom::class);
-    }
-
     public function getDurationLabelAttribute(): string
     {
-        $seconds = (int) ($this->duration_seconds ?? 0);
-
-        return gmdate('H:i:s', $seconds);
+        return gmdate('H:i:s', (int) ($this->duration_seconds ?? 0));
     }
 
     public function effectiveElapsedSeconds(): int
@@ -74,6 +75,6 @@ class StudySession extends Model
 
     public function isPaused(): bool
     {
-        return $this->ended_at === null && $this->paused_at !== null;
+        return $this->status === self::STATUS_ACTIVE && $this->paused_at !== null;
     }
 }

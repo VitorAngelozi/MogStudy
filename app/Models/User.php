@@ -49,6 +49,31 @@ class User extends Authenticatable
         return $this->hasMany(StudySession::class);
     }
 
+    public function ownedStudyRooms(): HasMany
+    {
+        return $this->hasMany(StudyRoom::class, 'owner_id');
+    }
+
+    public function ownedStudyGroups(): HasMany
+    {
+        return $this->hasMany(StudyGroup::class, 'owner_id');
+    }
+
+    public function studyGroupMemberships(): HasMany
+    {
+        return $this->hasMany(StudyGroupMember::class);
+    }
+
+    public function studyFocusParticipations(): HasMany
+    {
+        return $this->hasMany(StudyFocusParticipation::class);
+    }
+
+    public function studyRoomParticipations(): HasMany
+    {
+        return $this->hasMany(StudyRoomParticipant::class);
+    }
+
     public function studySubjects(): HasMany
     {
         return $this->hasMany(StudySubject::class);

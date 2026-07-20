@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\CirclePost;
 use App\Models\DailyLog;
 use App\Models\Friendship;
+use App\Models\StudyFocusParticipation;
+use App\Models\StudyGroup;
 use App\Models\StudySession;
 use App\Models\User;
+use App\Services\StudyGroups\StudyGroupStatisticsService;
 use App\Support\ActivityHeatmap;
 use App\Support\StudySubjectCards;
 use Carbon\Carbon;
@@ -83,6 +86,7 @@ class DashboardController extends Controller
         $recentActivity = $this->buildRecentActivity($user, $recentSessions, $recentLogs);
         $achievements = $this->buildAchievements($recentLogs);
         $circle = $this->buildCircle($user);
+        $studyGroups = $this->buildStudyGroupsSummary($user);
         $friendNotifications = $this->buildFriendNotifications($user);
         $friendSearch = $this->buildFriendSearch($request, $user);
         $sidebarItems = $this->buildSidebarItems($user);
@@ -90,17 +94,15 @@ class DashboardController extends Controller
         $currentSessionBaseSeconds = $currentSession
             ? $this->finishedSecondsTodayForCurrentSubject($user, $currentSession, $today)
             : 0;
-        $currentSessionLiveSeconds = $currentSession
-            ? $currentSession->started_at->diffInSeconds(now())
-            : 0;
         $timerElapsedSeconds = $currentSession
-            ? $currentSessionBaseSeconds + $currentSessionLiveSeconds
+            ? $currentSessionBaseSeconds + $currentSession->effectiveElapsedSeconds()
             : $totals['seconds_today'];
 
         $timer = [
-            'state' => $currentSession ? 'running' : 'idle',
+            'state' => $currentSession?->isPaused() ? 'paused' : ($currentSession ? 'running' : 'idle'),
             'subject' => $currentSession?->subject ?: 'Total estudado hoje',
             'started_at' => $currentSession?->started_at?->toIso8601String(),
+            'rendered_at' => now()->toIso8601String(),
             'base_seconds' => $currentSessionBaseSeconds,
             'elapsed_seconds' => $timerElapsedSeconds,
             'display' => $this->formatTimer($timerElapsedSeconds),
@@ -122,6 +124,7 @@ class DashboardController extends Controller
             'recentActivity' => $recentActivity,
             'achievements' => $achievements,
             'circle' => $circle,
+            'studyGroups' => $studyGroups,
             'friendNotifications' => $friendNotifications,
             'friendSearch' => $friendSearch,
             'streak' => $this->buildStreak($user->id),
@@ -244,7 +247,7 @@ class DashboardController extends Controller
         return [
             ['label' => 'Inicio', 'href' => '#inicio', 'icon' => 'home', 'active' => true],
             ['label' => 'Materias', 'href' => route('study-subjects.index'), 'icon' => 'book', 'active' => false],
-            ['label' => 'Sessoes', 'href' => '#sessoes', 'icon' => 'clock', 'active' => false],
+            ['label' => 'Grupos de estudo', 'href' => route('study-groups.index'), 'icon' => 'users', 'active' => false],
             ['label' => 'Anotacoes', 'href' => '#anotacoes', 'icon' => 'notes', 'active' => false],
             ['label' => 'Metas', 'href' => '#metas', 'icon' => 'target', 'active' => false],
             ['label' => 'Conquistas', 'href' => '#conquistas', 'icon' => 'trophy', 'active' => false],
@@ -297,6 +300,34 @@ class DashboardController extends Controller
         ];
 
         return array_slice($items, 0, 4);
+    }
+
+    private function buildStudyGroupsSummary(User $user): array
+    {
+        $groups = StudyGroup::query()
+            ->with(['focusRooms.activeParticipations'])
+            ->withCount(['members', 'focusRooms'])
+            ->whereHas('members', fn ($query) => $query->where('user_id', $user->id))
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        $activeParticipation = $user->studyFocusParticipations()
+            ->with(['focusRoom.group', 'studySubject'])
+            ->where('status', StudyFocusParticipation::STATUS_ACTIVE)
+            ->latest('started_at')
+            ->first();
+
+        $statistics = app(StudyGroupStatisticsService::class);
+
+        return [
+            'groups' => $groups->map(fn (StudyGroup $group) => [
+                'model' => $group,
+                'active_count' => $group->focusRooms->sum(fn ($room) => $room->activeParticipations->count()),
+                'seconds_today' => $statistics->secondsTodayForGroup($group),
+            ]),
+            'active_participation' => $activeParticipation,
+        ];
     }
 
     private function buildCircle(User $user): array

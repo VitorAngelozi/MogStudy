@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class DailyLogController extends Controller
 {
@@ -16,7 +17,7 @@ class DailyLogController extends Controller
         ]);
 
         $logDate = isset($data['log_date'])
-            ? \Illuminate\Support\Carbon::parse($data['log_date'])->toDateString()
+            ? Carbon::parse($data['log_date'])->toDateString()
             : now()->toDateString();
 
         $studyMinutes = (int) $request->user()->studySessions()
