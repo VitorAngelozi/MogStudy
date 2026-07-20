@@ -31,11 +31,11 @@
                 </div>
                 <div class="mini-stat">
                     <span>Sessoes</span>
-                    <strong>{{ $sessions->count() }} recentes</strong>
+                    <strong>{{ $sessionsCount }} cadastrada{{ $sessionsCount === 1 ? '' : 's' }}</strong>
                 </div>
                 <div class="mini-stat">
                     <span>Feed</span>
-                    <strong>{{ $logs->count() }} registros</strong>
+                    <strong>{{ $logsCount }} registro{{ $logsCount === 1 ? '' : 's' }}</strong>
                 </div>
             </aside>
         </section>
@@ -102,62 +102,5 @@
             </section>
         @endif
 
-        <section class="panel-grid">
-            @include('partials.contribution-grid', ['heatmap' => $heatmap])
-        </section>
-
-        <section class="panel-grid">
-            <div class="panel">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Registros</p>
-                        <h2>Ultimos dias</h2>
-                    </div>
-                </div>
-
-                <div class="feed-list">
-                    @forelse ($logs as $log)
-                        <article class="feed-item">
-                            <div class="feed-meta">
-                                <strong>{{ $log->title }}</strong>
-                                <span>{{ $log->log_date->format('d/m/Y') }}</span>
-                            </div>
-                            <p>{{ $log->content }}</p>
-                            <small>{{ $log->study_minutes }} min estudados</small>
-                        </article>
-                    @empty
-                        <p class="muted">Nenhum registro disponivel.</p>
-                    @endforelse
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Sessoes</p>
-                        <h2>Historico recente</h2>
-                    </div>
-                </div>
-
-                <div class="session-list">
-                    @forelse ($sessions as $session)
-                        <article class="session-item">
-                            <div>
-                                <strong>{{ $session->subject }}</strong>
-                                <p class="muted">
-                                    {{ $session->started_at->format('d/m/Y H:i') }}
-                                    @if ($session->ended_at)
-                                        - {{ $session->ended_at->format('H:i') }}
-                                    @endif
-                                </p>
-                            </div>
-                            <span>{{ $session->duration_label }}</span>
-                        </article>
-                    @empty
-                        <p class="muted">Sem sessoes para mostrar.</p>
-                    @endforelse
-                </div>
-            </div>
-        </section>
     </div>
 @endsection

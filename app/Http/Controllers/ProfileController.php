@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLog;
 use App\Models\User;
-use App\Support\ActivityHeatmap;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,24 +12,10 @@ class ProfileController extends Controller
 {
     public function show(User $user)
     {
-        $logs = $user->dailyLogs()
-            ->latest('log_date')
-            ->latest('created_at')
-            ->limit(12)
-            ->get();
-
-        $sessions = $user->studySessions()
-            ->latest('started_at')
-            ->limit(8)
-            ->get();
-
-        $heatmap = app(ActivityHeatmap::class)->build($user->id);
-
         return view('profile', [
             'profileUser' => $user,
-            'logs' => $logs,
-            'sessions' => $sessions,
-            'heatmap' => $heatmap,
+            'logsCount' => $user->dailyLogs()->count(),
+            'sessionsCount' => $user->studySessions()->count(),
             'streak' => $this->buildStreak($user->id),
         ]);
     }
