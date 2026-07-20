@@ -185,6 +185,174 @@ document.querySelectorAll('[data-subject-combobox]').forEach((combobox) => {
     close();
 });
 
+document.querySelectorAll('[data-friend-search]').forEach((widget) => {
+    const form = widget.querySelector('[data-friend-search-form]');
+    const input = widget.querySelector('[data-friend-search-input]');
+    const resultsPanel = widget.querySelector('[data-friend-search-results]');
+    const searchUrl = widget.dataset.friendSearchUrl;
+    const emptyHint = widget.dataset.friendSearchEmpty || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    let debounceId = null;
+    let controller = null;
+
+    if (!form || !input || !resultsPanel || !searchUrl) {
+        return;
+    }
+
+    const escapeHtml = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
+    const renderState = (message, tone = '') => {
+        resultsPanel.innerHTML = `<p class="friend-search-state ${tone}">${escapeHtml(message)}</p>`;
+    };
+
+    const methodField = (method) => method
+        ? `<input type="hidden" name="_method" value="${escapeHtml(method)}">`
+        : '';
+
+    const csrfField = csrfToken
+        ? `<input type="hidden" name="_token" value="${escapeHtml(csrfToken)}">`
+        : '';
+
+    const renderAction = (result) => {
+        const friendship = result.friendship || {};
+
+        if (friendship.state === 'none') {
+            return `
+                <form action="${escapeHtml(friendship.store_url)}" method="POST">
+                    ${csrfField}
+                    <button type="submit" class="mini-button">Adicionar</button>
+                </form>
+            `;
+        }
+
+        if (friendship.state === 'sent') {
+            return `
+                <span class="status-pill">Pedido enviado</span>
+                <form action="${escapeHtml(friendship.destroy_url)}" method="POST">
+                    ${csrfField}
+                    ${methodField('DELETE')}
+                    <button type="submit" class="ghost-button">Cancelar</button>
+                </form>
+            `;
+        }
+
+        if (friendship.state === 'received') {
+            return `
+                <form action="${escapeHtml(friendship.accept_url)}" method="POST">
+                    ${csrfField}
+                    <button type="submit" class="mini-button">Aceitar</button>
+                </form>
+            `;
+        }
+
+        return `
+            <span class="status-pill status-pill-live">Amigos</span>
+            <form action="${escapeHtml(friendship.destroy_url)}" method="POST">
+                ${csrfField}
+                ${methodField('DELETE')}
+                <button type="submit" class="ghost-button">Remover</button>
+            </form>
+        `;
+    };
+
+    const renderResult = (result) => {
+        const avatar = result.photo_url
+            ? `<img class="friend-avatar friend-avatar-image" src="${escapeHtml(result.photo_url)}" alt="Foto de ${escapeHtml(result.display_name)}">`
+            : `<span class="friend-avatar">${escapeHtml(result.avatar)}</span>`;
+
+        return `
+            <article class="friend-search-result">
+                <a href="${escapeHtml(result.profile_url)}" class="friend-search-person">
+                    ${avatar}
+                    <span class="friend-search-copy">
+                        <strong>${escapeHtml(result.display_name)}</strong>
+                        <small>@${escapeHtml(result.username)}</small>
+                    </span>
+                </a>
+
+                <div class="friend-search-action">
+                    ${renderAction(result)}
+                </div>
+            </article>
+        `;
+    };
+
+    const renderResults = (payload) => {
+        if (!payload.has_search) {
+            resultsPanel.innerHTML = `<p class="friend-search-hint">${escapeHtml(emptyHint)}</p>`;
+            return;
+        }
+
+        if (!payload.results || payload.results.length === 0) {
+            renderState('Nenhuma pessoa encontrada com essa busca.');
+            return;
+        }
+
+        resultsPanel.innerHTML = payload.results.map(renderResult).join('');
+    };
+
+    const runSearch = async () => {
+        const query = input.value.trim();
+
+        if (!query) {
+            if (controller) {
+                controller.abort();
+                controller = null;
+            }
+            renderResults({ has_search: false, results: [] });
+            return;
+        }
+
+        if (controller) {
+            controller.abort();
+        }
+
+        controller = new AbortController();
+        renderState('Buscando...', 'is-loading');
+
+        const url = new URL(searchUrl, window.location.origin);
+        url.searchParams.set('friend_search', query);
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error('Search failed');
+            }
+
+            renderResults(await response.json());
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                renderState('Nao foi possivel buscar agora. Tente novamente.', 'is-error');
+            }
+        }
+    };
+
+    const scheduleSearch = () => {
+        window.clearTimeout(debounceId);
+        debounceId = window.setTimeout(runSearch, 400);
+    };
+
+    input.addEventListener('input', scheduleSearch);
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        window.clearTimeout(debounceId);
+        runSearch();
+    });
+});
+
 document.querySelectorAll('[data-character-counter]').forEach((field) => {
     const counter = document.getElementById(field.dataset.characterCounter);
     const maxLength = Number(field.getAttribute('maxlength') || 0);

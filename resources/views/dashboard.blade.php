@@ -47,14 +47,89 @@
                 @endforeach
             </nav>
 
-            <section class="sidebar-panel sidebar-cta">
+            <section
+                class="sidebar-panel sidebar-cta"
+                data-friend-search
+                data-friend-search-url="{{ route('friend-search') }}"
+                data-friend-search-empty="Dica: compartilhe seu {{ '@'.$profile['username'] }} com amigos."
+            >
                 <div>
-                    <p class="eyebrow">Convide amigos</p>
-                    <h3>Estude junto e mantenha a sequencia viva.</h3>
-                    <p>Espaco reservado para colaboracao social no futuro.</p>
+                    <p class="eyebrow">Encontrar amigos</p>
+                    <h3>Busque pelo @username da pessoa.</h3>
+                    <p>Use o nome publico ou o identificador unico para adicionar alguem ao seu ciclo.</p>
                 </div>
 
-                <button type="button" class="secondary-button full-width">Convidar</button>
+                <form action="{{ route('dashboard') }}" method="GET" class="friend-search-form" data-friend-search-form>
+                    <label>
+                        <span class="visually-hidden">Buscar amigos</span>
+                        <span class="friend-search-input">
+                            @include('partials.dashboard.icon', ['name' => 'search', 'class' => 'icon-svg'])
+                            <input
+                                type="search"
+                                name="friend_search"
+                                value="{{ $friendSearch['query'] }}"
+                                placeholder="Buscar @username ou nome"
+                                autocomplete="off"
+                                data-friend-search-input
+                            >
+                        </span>
+                    </label>
+                    <button type="submit" class="secondary-button full-width" data-friend-search-submit>Buscar</button>
+                </form>
+
+                <div class="friend-search-results" data-friend-search-results aria-live="polite">
+                    @if ($friendSearch['has_search'])
+                        @forelse ($friendSearch['results'] as $result)
+                            @php($candidate = $result['user'])
+                            @php($friendship = $result['friendship'])
+                            <article class="friend-search-result">
+                                <a href="{{ route('profile.show', $candidate) }}" class="friend-search-person">
+                                    @if ($result['photo_url'])
+                                        <img class="friend-avatar friend-avatar-image" src="{{ $result['photo_url'] }}" alt="Foto de {{ $candidate->displayName() }}">
+                                    @else
+                                        <span class="friend-avatar">{{ $result['avatar'] }}</span>
+                                    @endif
+                                    <span class="friend-search-copy">
+                                        <strong>{{ $candidate->displayName() }}</strong>
+                                        <small>{{ '@'.$candidate->username }}</small>
+                                    </span>
+                                </a>
+
+                                <div class="friend-search-action">
+                                    @if ($friendship['state'] === 'none')
+                                        <form action="{{ route('friendships.store', $candidate) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="mini-button">Adicionar</button>
+                                        </form>
+                                    @elseif ($friendship['state'] === 'sent')
+                                        <span class="status-pill">Pedido enviado</span>
+                                        <form action="{{ route('friendships.destroy', $friendship['friendship']) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="ghost-button">Cancelar</button>
+                                        </form>
+                                    @elseif ($friendship['state'] === 'received')
+                                        <form action="{{ route('friendships.accept', $friendship['friendship']) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="mini-button">Aceitar</button>
+                                        </form>
+                                    @else
+                                        <span class="status-pill status-pill-live">Amigos</span>
+                                        <form action="{{ route('friendships.destroy', $friendship['friendship']) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="ghost-button">Remover</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </article>
+                        @empty
+                            <p class="friend-search-state">Nenhuma pessoa encontrada com essa busca.</p>
+                        @endforelse
+                    @else
+                        <p class="friend-search-hint">Dica: compartilhe seu {{ '@'.$profile['username'] }} com amigos.</p>
+                    @endif
+                </div>
 
                 <form action="{{ route('logout') }}" method="POST" class="sidebar-logout">
                     @csrf

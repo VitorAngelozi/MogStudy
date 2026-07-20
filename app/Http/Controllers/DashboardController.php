@@ -84,6 +84,7 @@ class DashboardController extends Controller
         $achievements = $this->buildAchievements($recentLogs);
         $circle = $this->buildCircle($user);
         $friendNotifications = $this->buildFriendNotifications($user);
+        $friendSearch = $this->buildFriendSearch($request, $user);
         $sidebarItems = $this->buildSidebarItems($user);
         $metrics = $this->buildMetrics($totals, $studySubjects->count());
         $currentSessionBaseSeconds = $currentSession
@@ -122,6 +123,7 @@ class DashboardController extends Controller
             'achievements' => $achievements,
             'circle' => $circle,
             'friendNotifications' => $friendNotifications,
+            'friendSearch' => $friendSearch,
             'streak' => $this->buildStreak($user->id),
             'greeting' => $this->greetingForHour(now()->hour),
             'heroSubtitle' => $currentSession
@@ -138,6 +140,21 @@ class DashboardController extends Controller
                 'today_label' => $this->formatSecondsAsHours($totals['seconds_today']),
             ],
             'metrics' => $metrics,
+        ]);
+    }
+
+    public function friendSearch(Request $request)
+    {
+        $query = $this->normalizeFriendSearchQuery($request);
+
+        return response()->json([
+            'query' => $query['original'],
+            'has_search' => $query['normalized'] !== '',
+            'results' => $query['normalized'] === ''
+                ? []
+                : $this->buildFriendSearchResults($request->user(), $query['normalized'])
+                    ->map(fn (array $result) => $this->friendSearchResultForJson($result))
+                    ->values(),
         ]);
     }
 
@@ -344,6 +361,114 @@ class DashboardController extends Controller
             'pending_received' => $pendingReceived,
             'accepted_sent' => $acceptedSent,
             'count' => $pendingReceived->count() + $acceptedSent->count(),
+        ];
+    }
+
+    private function buildFriendSearch(Request $request, User $user): array
+    {
+        $query = $this->normalizeFriendSearchQuery($request);
+
+        if ($query['normalized'] === '') {
+            return [
+                'query' => $query['original'],
+                'has_search' => false,
+                'results' => collect(),
+            ];
+        }
+
+        return [
+            'query' => $query['original'],
+            'has_search' => true,
+            'results' => $this->buildFriendSearchResults($user, $query['normalized']),
+        ];
+    }
+
+    private function normalizeFriendSearchQuery(Request $request): array
+    {
+        $query = trim((string) $request->query('friend_search', ''));
+
+        return [
+            'original' => $query,
+            'normalized' => Str::of($query)->trim()->ltrim('@')->squish()->toString(),
+        ];
+    }
+
+    private function buildFriendSearchResults(User $user, string $normalized)
+    {
+        $results = User::query()
+            ->whereKeyNot($user->id)
+            ->where(function ($builder) use ($normalized) {
+                $builder->where('username', 'like', $normalized.'%')
+                    ->orWhere('display_name', 'like', '%'.$normalized.'%');
+            })
+            ->orderByRaw('case when username = ? then 0 when username like ? then 1 else 2 end', [
+                $normalized,
+                $normalized.'%',
+            ])
+            ->orderBy('username')
+            ->limit(6)
+            ->get()
+            ->map(fn (User $candidate) => [
+                'user' => $candidate,
+                'avatar' => $this->avatarFromName($candidate->displayName()),
+                'photo_url' => $candidate->profilePhotoUrl(),
+                'friendship' => $this->friendshipStateBetween($user, $candidate),
+            ]);
+
+        return $results;
+    }
+
+    private function friendSearchResultForJson(array $result): array
+    {
+        /** @var User $candidate */
+        $candidate = $result['user'];
+        $friendship = $result['friendship'];
+        $friendshipModel = $friendship['friendship'];
+
+        return [
+            'display_name' => $candidate->displayName(),
+            'username' => $candidate->username,
+            'profile_url' => route('profile.show', $candidate),
+            'photo_url' => $result['photo_url'],
+            'avatar' => $result['avatar'],
+            'friendship' => [
+                'state' => $friendship['state'],
+                'store_url' => $friendship['state'] === 'none' ? route('friendships.store', $candidate) : null,
+                'accept_url' => $friendship['state'] === 'received' ? route('friendships.accept', $friendshipModel) : null,
+                'destroy_url' => in_array($friendship['state'], ['sent', 'accepted'], true) ? route('friendships.destroy', $friendshipModel) : null,
+            ],
+        ];
+    }
+
+    private function friendshipStateBetween(User $viewer, User $candidate): array
+    {
+        $friendship = Friendship::query()
+            ->where(function ($query) use ($viewer, $candidate) {
+                $query->where('requester_id', $viewer->id)
+                    ->where('addressee_id', $candidate->id);
+            })
+            ->orWhere(function ($query) use ($viewer, $candidate) {
+                $query->where('requester_id', $candidate->id)
+                    ->where('addressee_id', $viewer->id);
+            })
+            ->first();
+
+        if (! $friendship) {
+            return [
+                'state' => 'none',
+                'friendship' => null,
+            ];
+        }
+
+        $state = match (true) {
+            $friendship->status === Friendship::STATUS_ACCEPTED => 'accepted',
+            $friendship->requester_id === $viewer->id => 'sent',
+            default => 'received',
+        };
+
+        return [
+            'state' => $state,
+            'friendship' => $friendship,
         ];
     }
 

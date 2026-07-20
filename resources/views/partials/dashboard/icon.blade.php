@@ -92,6 +92,12 @@
             <path d="M12 4.8V3"></path>
         </svg>
         @break
+    @case('search')
+        <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5"></circle>
+            <path d="m15.4 15.4 4.1 4.1"></path>
+        </svg>
+        @break
     @case('pencil')
         <svg class="{{ $svgClass }}" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4.5 19.5 6 14.2 16.3 3.9a2.2 2.2 0 0 1 3.1 3.1L9.1 17.3z"></path>

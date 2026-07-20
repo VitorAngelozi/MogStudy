@@ -803,7 +803,17 @@ class MogStudyFlowTest extends TestCase
         $this->assertSame('dev', $user->profile_title);
         $this->assertSame('Sem bio mockada agora.', $user->bio);
         $this->assertNotNull($user->profile_photo_path);
+        $this->assertSame('/storage/'.$user->profile_photo_path, $user->profilePhotoUrl());
         Storage::disk('public')->assertExists($user->profile_photo_path);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('src="'.$user->profilePhotoUrl().'"', false);
+
+        $this->get(route('profile.show', $user))
+            ->assertOk()
+            ->assertSee('src="'.$user->profilePhotoUrl().'"', false);
     }
 
     public function test_profile_title_and_bio_are_limited(): void
@@ -1083,6 +1093,174 @@ class MogStudyFlowTest extends TestCase
             ->assertSee(route('friendships.accept', $pendingFriendship), false)
             ->assertSeeText('Amigo Aceito')
             ->assertSeeText('aceitou seu pedido de amizade');
+    }
+
+    public function test_dashboard_friend_search_finds_people_by_username_and_public_name(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'selfonly',
+            'display_name' => 'Self Only',
+        ]);
+        $byUsername = User::factory()->create([
+            'username' => 'coderana',
+            'display_name' => 'Ana Dev',
+            'email' => 'ana@example.com',
+        ]);
+        $byUsername->forceFill([
+            'profile_photo_path' => 'profile-photos/ana.png',
+        ])->save();
+        $byName = User::factory()->create([
+            'username' => 'zelda',
+            'display_name' => 'Zelda Friend',
+            'email' => 'zelda@example.com',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['friend_search' => '@coderana']))
+            ->assertOk()
+            ->assertSeeText('Encontrar amigos')
+            ->assertSeeText('Ana Dev')
+            ->assertSeeText('@'.$byUsername->username)
+            ->assertSee(route('friendships.store', $byUsername), false)
+            ->assertDontSeeText('ana@example.com');
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['friend_search' => 'Zelda Friend']))
+            ->assertOk()
+            ->assertSeeText('Zelda Friend')
+            ->assertSeeText('@'.$byName->username)
+            ->assertDontSeeText('zelda@example.com');
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['friend_search' => 'selfonly']))
+            ->assertOk()
+            ->assertSeeText('Nenhuma pessoa encontrada com essa busca.');
+    }
+
+    public function test_async_friend_search_returns_people_by_username_and_public_name_without_email(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'selfonly',
+            'display_name' => 'Self Only',
+        ]);
+        $byUsername = User::factory()->create([
+            'username' => 'coderana',
+            'display_name' => 'Ana Dev',
+            'email' => 'ana@example.com',
+        ]);
+        $byUsername->forceFill([
+            'profile_photo_path' => 'profile-photos/ana.png',
+        ])->save();
+        $byName = User::factory()->create([
+            'username' => 'zelda',
+            'display_name' => 'Zelda Friend',
+            'email' => 'zelda@example.com',
+        ]);
+
+        $this->actingAs($user)
+            ->getJson(route('friend-search', ['friend_search' => '@coderana']))
+            ->assertOk()
+            ->assertJsonPath('has_search', true)
+            ->assertJsonPath('results.0.username', $byUsername->username)
+            ->assertJsonPath('results.0.display_name', 'Ana Dev')
+            ->assertJsonPath('results.0.photo_url', '/storage/profile-photos/ana.png')
+            ->assertJsonPath('results.0.friendship.state', 'none')
+            ->assertJsonMissing(['email' => 'ana@example.com']);
+
+        $this->actingAs($user)
+            ->getJson(route('friend-search', ['friend_search' => 'Zelda Friend']))
+            ->assertOk()
+            ->assertJsonPath('results.0.username', $byName->username)
+            ->assertJsonMissing(['email' => 'zelda@example.com']);
+
+        $this->actingAs($user)
+            ->getJson(route('friend-search', ['friend_search' => 'selfonly']))
+            ->assertOk()
+            ->assertJsonCount(0, 'results');
+    }
+
+    public function test_dashboard_friend_search_shows_actions_by_friendship_state(): void
+    {
+        $user = User::factory()->create();
+        $available = User::factory()->create(['username' => 'stateavailable', 'display_name' => 'State Available']);
+        $sent = User::factory()->create(['username' => 'statesent', 'display_name' => 'State Sent']);
+        $received = User::factory()->create(['username' => 'statereceived', 'display_name' => 'State Received']);
+        $accepted = User::factory()->create(['username' => 'stateaccepted', 'display_name' => 'State Accepted']);
+
+        $sentFriendship = Friendship::create([
+            'requester_id' => $user->id,
+            'addressee_id' => $sent->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+        $receivedFriendship = Friendship::create([
+            'requester_id' => $received->id,
+            'addressee_id' => $user->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+        $acceptedFriendship = Friendship::create([
+            'requester_id' => $user->id,
+            'addressee_id' => $accepted->id,
+            'status' => Friendship::STATUS_ACCEPTED,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['friend_search' => 'State']))
+            ->assertOk()
+            ->assertSeeText('State Available')
+            ->assertSee(route('friendships.store', $available), false)
+            ->assertSeeText('State Sent')
+            ->assertSeeText('Pedido enviado')
+            ->assertSee(route('friendships.destroy', $sentFriendship), false)
+            ->assertSeeText('State Received')
+            ->assertSee(route('friendships.accept', $receivedFriendship), false)
+            ->assertSeeText('State Accepted')
+            ->assertSeeText('Amigos')
+            ->assertSee(route('friendships.destroy', $acceptedFriendship), false);
+    }
+
+    public function test_async_friend_search_returns_friendship_states_and_requires_authentication(): void
+    {
+        $user = User::factory()->create();
+        $available = User::factory()->create(['username' => 'stateavailable', 'display_name' => 'State Available']);
+        $sent = User::factory()->create(['username' => 'statesent', 'display_name' => 'State Sent']);
+        $received = User::factory()->create(['username' => 'statereceived', 'display_name' => 'State Received']);
+        $accepted = User::factory()->create(['username' => 'stateaccepted', 'display_name' => 'State Accepted']);
+
+        $sentFriendship = Friendship::create([
+            'requester_id' => $user->id,
+            'addressee_id' => $sent->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+        $receivedFriendship = Friendship::create([
+            'requester_id' => $received->id,
+            'addressee_id' => $user->id,
+            'status' => Friendship::STATUS_PENDING,
+        ]);
+        $acceptedFriendship = Friendship::create([
+            'requester_id' => $user->id,
+            'addressee_id' => $accepted->id,
+            'status' => Friendship::STATUS_ACCEPTED,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson(route('friend-search', ['friend_search' => 'State']))
+            ->assertOk();
+
+        $results = collect($response->json('results'))->keyBy('username');
+
+        $this->assertSame('none', $results[$available->username]['friendship']['state']);
+        $this->assertSame(route('friendships.store', $available), $results[$available->username]['friendship']['store_url']);
+        $this->assertSame('sent', $results[$sent->username]['friendship']['state']);
+        $this->assertSame(route('friendships.destroy', $sentFriendship), $results[$sent->username]['friendship']['destroy_url']);
+        $this->assertSame('received', $results[$received->username]['friendship']['state']);
+        $this->assertSame(route('friendships.accept', $receivedFriendship), $results[$received->username]['friendship']['accept_url']);
+        $this->assertSame('accepted', $results[$accepted->username]['friendship']['state']);
+        $this->assertSame(route('friendships.destroy', $acceptedFriendship), $results[$accepted->username]['friendship']['destroy_url']);
+
+        auth()->logout();
+
+        $this->getJson(route('friend-search', ['friend_search' => 'State']))
+            ->assertRedirect(route('login'));
     }
 
     public function test_public_profile_renders_friendship_actions_by_state(): void

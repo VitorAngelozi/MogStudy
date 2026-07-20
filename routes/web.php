@@ -32,6 +32,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/friend-search', [DashboardController::class, 'friendSearch'])->name('friend-search');
     Route::get('/study-subjects', [StudySubjectController::class, 'index'])->name('study-subjects.index');
     Route::post('/study-subjects', [StudySubjectController::class, 'store'])->name('study-subjects.store');
     Route::put('/study-subjects/{studySubject}', [StudySubjectController::class, 'update'])->name('study-subjects.update');
