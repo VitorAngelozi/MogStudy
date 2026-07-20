@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -18,9 +17,11 @@ class User extends Authenticatable
     protected $fillable = [
         'username',
         'display_name',
+        'profile_title',
         'email',
         'password',
         'bio',
+        'profile_photo_path',
         'readme_markdown',
         'last_login_at',
     ];
@@ -63,38 +64,13 @@ class User extends Authenticatable
         return $this->display_name ?: $this->username;
     }
 
-    public function defaultReadmeTemplate(): string
+    public function profileTitle(): string
     {
-        $displayName = $this->displayName();
-
-        return <<<MD
-# Olá, eu sou {$displayName}
-
-Bem-vindo ao meu perfil no MogStudy.
-
-## Sobre mim
-- Estou construindo consistência nos meus estudos.
-- Aqui acompanho sessões, registros diários e progresso real.
-
-## O que estou estudando
-- Laravel
-- Backend
-- Organização de rotina
-
-## Metas da semana
-- Estudar todos os dias.
-- Registrar o aprendizado no feed.
-- Fechar pelo menos uma sessão por dia.
-MD;
+        return $this->profile_title ?: $this->displayName();
     }
 
-    public function renderedReadme(): string
+    public function profilePhotoUrl(): ?string
     {
-        $markdown = $this->readme_markdown ?: $this->defaultReadmeTemplate();
-
-        return Str::markdown($markdown, [
-            'html_input' => 'strip',
-            'allow_unsafe_links' => false,
-        ]);
+        return $this->profile_photo_path ? asset('storage/'.$this->profile_photo_path) : null;
     }
 }

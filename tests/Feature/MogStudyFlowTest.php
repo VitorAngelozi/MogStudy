@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\DailyLog;
 use App\Models\StudySession;
 use App\Models\StudySubject;
 use App\Models\User;
@@ -385,7 +384,7 @@ class MogStudyFlowTest extends TestCase
                 ->assertSeeText('Criada recente')
                 ->assertSeeText('Editada recente')
                 ->assertSeeText('Estudada recente')
-            ->assertDontSee('<strong>Antiga</strong>', false);
+                ->assertDontSee('<strong>Antiga</strong>', false);
         } finally {
             Carbon::setTestNow();
         }
@@ -613,11 +612,28 @@ class MogStudyFlowTest extends TestCase
         $this->assertDatabaseCount('study_sessions', 0);
     }
 
-    public function test_user_can_save_daily_log_and_public_profile_renders_readme(): void
+    public function test_dashboard_profile_card_links_to_public_profile_without_readme_chip(): void
     {
         $user = User::factory()->create([
             'username' => 'studygirl',
-            'readme_markdown' => "# Study Girl\n\nHello from MogStudy.",
+            'profile_title' => 'dev',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('profile.show', $user).'"', false)
+            ->assertSeeText('dev')
+            ->assertDontSeeText('palavras no README');
+    }
+
+    public function test_user_can_save_daily_log_and_public_profile_renders_profile_fields_without_readme(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'studygirl',
+            'profile_title' => 'Study Girl',
+            'bio' => 'Hello from MogStudy.',
+            'readme_markdown' => "# Legacy README\n\nThis should stay hidden.",
         ]);
 
         $this->actingAs($user)->post(route('daily-logs.store'), [
@@ -633,17 +649,106 @@ class MogStudyFlowTest extends TestCase
 
         $this->get(route('profile.show', $user))
             ->assertOk()
-            ->assertSeeText('Hello from MogStudy.');
+            ->assertSeeText('Study Girl')
+            ->assertSeeText('@studygirl')
+            ->assertSeeText('Hello from MogStudy.')
+            ->assertDontSee('markdown-body', false)
+            ->assertDontSeeText('Legacy README')
+            ->assertDontSeeText('This should stay hidden.')
+            ->assertDontSeeText('README');
     }
 
-    public function test_readme_is_limited_to_500_characters(): void
+    public function test_user_can_update_profile_title_bio_and_photo(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create([
+            'profile_title' => null,
+            'bio' => null,
+        ]);
+
+        $this->actingAs($user)->from(route('profile.show', $user))->put(route('profile.update'), [
+            'profile_title' => 'dev',
+            'bio' => 'Sem bio mockada agora.',
+            'photo' => UploadedFile::fake()->image('avatar.png')->size(512),
+        ])->assertRedirect(route('profile.show', $user))
+            ->assertSessionHasNoErrors();
+
+        $user->refresh();
+
+        $this->assertSame('dev', $user->profile_title);
+        $this->assertSame('Sem bio mockada agora.', $user->bio);
+        $this->assertNotNull($user->profile_photo_path);
+        Storage::disk('public')->assertExists($user->profile_photo_path);
+    }
+
+    public function test_profile_title_and_bio_are_limited(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)->from(route('dashboard'))->put(route('readme.update'), [
-            'readme_markdown' => str_repeat('a', 501),
-        ])->assertRedirect(route('dashboard'))
-            ->assertSessionHasErrors('readme_markdown');
+        $this->actingAs($user)->from(route('profile.show', $user))->put(route('profile.update'), [
+            'profile_title' => str_repeat('a', 51),
+            'bio' => str_repeat('b', 501),
+        ])->assertRedirect(route('profile.show', $user))
+            ->assertSessionHasErrors(['profile_title', 'bio']);
+    }
+
+    public function test_profile_photo_must_respect_two_megabyte_limit(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->from(route('profile.show', $user))->put(route('profile.update'), [
+            'profile_title' => 'dev',
+            'bio' => 'Bio valida.',
+            'photo' => UploadedFile::fake()->image('pesada.png')->size(2049),
+        ])->assertRedirect(route('profile.show', $user))
+            ->assertSessionHasErrors('photo');
+
+        $this->assertNull($user->refresh()->profile_photo_path);
+    }
+
+    public function test_profile_photo_must_be_a_valid_image_type(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->from(route('profile.show', $user))->put(route('profile.update'), [
+            'profile_title' => 'dev',
+            'bio' => 'Bio valida.',
+            'photo' => UploadedFile::fake()->create('avatar.pdf', 10, 'application/pdf'),
+        ])->assertRedirect(route('profile.show', $user))
+            ->assertSessionHasErrors('photo');
+
+        $this->assertNull($user->refresh()->profile_photo_path);
+    }
+
+    public function test_replacing_profile_photo_deletes_previous_file(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create([
+            'profile_photo_path' => UploadedFile::fake()->image('antiga.png')->store('profile-photos', 'public'),
+        ]);
+        $oldPhotoPath = $user->profile_photo_path;
+
+        $this->actingAs($user)->from(route('profile.show', $user))->put(route('profile.update'), [
+            'profile_title' => 'dev',
+            'bio' => 'Bio atualizada.',
+            'photo' => UploadedFile::fake()->image('nova.png')->size(256),
+        ])->assertRedirect(route('profile.show', $user))
+            ->assertSessionHasNoErrors();
+
+        $user->refresh();
+
+        Storage::disk('public')->assertMissing($oldPhotoPath);
+        Storage::disk('public')->assertExists($user->profile_photo_path);
+    }
+
+    public function test_guest_cannot_update_profile(): void
+    {
+        $this->put(route('profile.update'), [
+            'profile_title' => 'dev',
+            'bio' => 'Bio.',
+        ])->assertRedirect(route('login'));
     }
 
     public function test_activity_heatmap_uses_finished_study_sessions_for_green_levels(): void

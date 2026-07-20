@@ -27,10 +27,10 @@ class UserFactory extends Factory
         return [
             'username' => fake()->unique()->userName(),
             'display_name' => fake()->name(),
+            'profile_title' => substr(fake()->jobTitle(), 0, 50),
             'email' => fake()->unique()->safeEmail(),
             'password' => static::$password ??= Hash::make('password'),
             'bio' => fake()->sentence(),
-            'readme_markdown' => "# ".fake()->firstName()."\n\n".fake()->paragraph(),
             'remember_token' => Str::random(10),
         ];
     }

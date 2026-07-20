@@ -144,7 +144,9 @@ class DashboardController extends Controller
 
         return [
             'avatar' => Str::upper(Str::substr($user->displayName(), 0, 1)),
+            'photo_url' => $user->profilePhotoUrl(),
             'display_name' => $user->displayName(),
+            'title' => $user->profileTitle(),
             'username' => $user->username,
             'bio' => $user->bio ?: 'Sem bio ainda. Adicione uma descricao no perfil.',
             'level' => $level,
@@ -152,7 +154,6 @@ class DashboardController extends Controller
             'xp_current' => $xpCurrent,
             'xp_goal' => 500,
             'xp_percent' => min(100, (int) round(($xpCurrent / 500) * 100)),
-            'readme_words' => str_word_count(strip_tags($user->readme_markdown ?: $user->defaultReadmeTemplate())),
         ];
     }
 
@@ -232,7 +233,7 @@ class DashboardController extends Controller
             $log = $recentLogs->first();
             $items[] = [
                 'avatar' => $this->avatarFromName($user->displayName()),
-                'title' => 'Voce estudou ' . $log->title,
+                'title' => 'Voce estudou '.$log->title,
                 'detail' => Str::limit($log->content, 48),
                 'when' => $log->created_at ? $log->created_at->diffForHumans() : $log->log_date->diffForHumans(),
                 'accent' => 'violet',
@@ -243,8 +244,8 @@ class DashboardController extends Controller
             $session = $recentSessions->first();
             $items[] = [
                 'avatar' => 'S',
-                'title' => 'Sessao criada em ' . $session->subject,
-                'detail' => $this->formatTimer((int) $session->duration_seconds) . ' · ' . ($session->notes ?: 'sem observacoes'),
+                'title' => 'Sessao criada em '.$session->subject,
+                'detail' => $this->formatTimer((int) $session->duration_seconds).' · '.($session->notes ?: 'sem observacoes'),
                 'when' => $session->started_at->diffForHumans(),
                 'accent' => 'emerald',
             ];
@@ -287,7 +288,7 @@ class DashboardController extends Controller
         return [
             [
                 'icon' => 'fire',
-                'title' => max(3, $recentLogs->count()) . ' dias consecutivos',
+                'title' => max(3, $recentLogs->count()).' dias consecutivos',
                 'detail' => 'Estude por varios dias seguidos',
                 'when' => 'ha 1d',
                 'tone' => 'fire',
@@ -381,5 +382,4 @@ class DashboardController extends Controller
     {
         return gmdate('H:i:s', max(0, $seconds));
     }
-
 }

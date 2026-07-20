@@ -4,10 +4,10 @@
     <section class="hero">
         <div class="hero-copy">
             <p class="eyebrow">MogStudy</p>
-            <h1>Seu GitHub de estudos, com timer, diário e README próprio.</h1>
+            <h1>Seu GitHub de estudos, com timer, diario e perfil proprio.</h1>
             <p class="lead">
-                Cronometre sessões, registre o que estudou hoje e mantenha um perfil público
-                com cara de repositório vivo.
+                Cronometre sessoes, registre o que estudou hoje e mantenha um perfil publico
+                com foto, titulo e bio.
             </p>
 
             <div class="hero-actions">
@@ -23,32 +23,32 @@
             </div>
             <div class="mini-stat">
                 <span>Registro do dia</span>
-                <strong>Disponível no feed</strong>
+                <strong>Disponivel no feed</strong>
             </div>
             <div class="mini-stat">
-                <span>README</span>
-                <strong>Markdown renderizado</strong>
+                <span>Perfil</span>
+                <strong>Foto, titulo e bio</strong>
             </div>
         </aside>
     </section>
 
     <section class="feature-grid">
         <article class="feature-card">
-            <p class="eyebrow">Cronômetro</p>
-            <h2>Registre sessões reais.</h2>
-            <p>Inicie e pare seus blocos de estudo e salve o tempo em minutos no histórico.</p>
+            <p class="eyebrow">Cronometro</p>
+            <h2>Registre sessoes reais.</h2>
+            <p>Inicie e pare seus blocos de estudo e salve o tempo em minutos no historico.</p>
         </article>
 
         <article class="feature-card">
-            <p class="eyebrow">Feed diário</p>
+            <p class="eyebrow">Feed diario</p>
             <h2>Um dia, uma entrada.</h2>
-            <p>Os registros aparecem como contribuições, deixando claro a consistência da rotina.</p>
+            <p>Os registros aparecem como contribuicoes, deixando clara a consistencia da rotina.</p>
         </article>
 
         <article class="feature-card">
-            <p class="eyebrow">README</p>
-            <h2>Perfil com identidade.</h2>
-            <p>Escreva em markdown e mostre sua jornada de estudo de forma pública.</p>
+            <p class="eyebrow">Perfil</p>
+            <h2>Uma identidade simples.</h2>
+            <p>Mostre uma foto, um titulo curto e uma bio para sua jornada de estudo.</p>
         </article>
     </section>
 @endsection

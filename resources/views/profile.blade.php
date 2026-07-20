@@ -1,97 +1,163 @@
 @extends('layouts.app')
 
+@php
+    $canEditProfile = auth()->id() === $profileUser->id;
+    $profilePhotoUrl = $profileUser->profilePhotoUrl();
+    $profileInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($profileUser->displayName(), 0, 1));
+@endphp
+
 @section('content')
-    <section class="hero hero-profile">
-        <div class="hero-copy">
-            <p class="eyebrow">Perfil público</p>
-            <h1>{{ $profileUser->displayName() }}</h1>
-            <p class="lead">{{ $profileUser->bio ?: 'Esse usuário ainda não adicionou uma bio.' }}</p>
-        </div>
+    <div class="profile-page">
+        <section class="hero hero-profile">
+            <div class="profile-hero-main">
+                @if ($profilePhotoUrl)
+                    <img class="profile-hero-avatar profile-hero-avatar-image" src="{{ $profilePhotoUrl }}" alt="Foto de {{ $profileUser->profileTitle() }}">
+                @else
+                    <div class="profile-hero-avatar">{{ $profileInitial }}</div>
+                @endif
 
-        <aside class="hero-panel">
-            <div class="mini-stat">
-                <span>Streak</span>
-                <strong>{{ $streak }} dia{{ $streak === 1 ? '' : 's' }}</strong>
-            </div>
-            <div class="mini-stat">
-                <span>Sessões</span>
-                <strong>{{ $sessions->count() }} recentes</strong>
-            </div>
-            <div class="mini-stat">
-                <span>Feed</span>
-                <strong>{{ $logs->count() }} registros</strong>
-            </div>
-        </aside>
-    </section>
-
-    <section class="panel-grid">
-        @include('partials.contribution-grid', ['heatmap' => $heatmap])
-
-        <div class="panel">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">README</p>
-                    <h2>{{ '@' . $profileUser->username }}</h2>
+                <div class="hero-copy">
+                    <p class="eyebrow">Perfil publico</p>
+                    <h1>{{ $profileUser->profileTitle() }}</h1>
+                    <p class="profile-username">{{ '@'.$profileUser->username }}</p>
+                    <p class="lead">{{ $profileUser->bio ?: 'Esse usuario ainda nao adicionou uma bio.' }}</p>
                 </div>
             </div>
 
-            <article class="markdown-body">
-                {!! $profileUser->renderedReadme() !!}
-            </article>
-        </div>
-    </section>
+            <aside class="hero-panel profile-stats-panel">
+                <div class="mini-stat">
+                    <span>Streak</span>
+                    <strong>{{ $streak }} dia{{ $streak === 1 ? '' : 's' }}</strong>
+                </div>
+                <div class="mini-stat">
+                    <span>Sessoes</span>
+                    <strong>{{ $sessions->count() }} recentes</strong>
+                </div>
+                <div class="mini-stat">
+                    <span>Feed</span>
+                    <strong>{{ $logs->count() }} registros</strong>
+                </div>
+            </aside>
+        </section>
 
-    <section class="panel-grid">
-        <div class="panel">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Registros</p>
-                    <h2>Últimos dias</h2>
+        @if ($canEditProfile)
+            <section class="panel profile-editor-panel" id="editar">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Editar perfil</p>
+                        <h2>Foto, titulo e bio</h2>
+                    </div>
+                </div>
+
+                <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="profile-edit-form">
+                    @csrf
+                    @method('PUT')
+
+                    <label class="profile-photo-upload">
+                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+                        @if ($profilePhotoUrl)
+                            <span class="profile-photo-tile" style="background-image: url('{{ $profilePhotoUrl }}')">
+                                <span class="subject-upload-overlay">Trocar</span>
+                            </span>
+                        @else
+                            <span class="profile-photo-tile profile-photo-tile-empty">
+                                <span>{{ $profileInitial }}</span>
+                            </span>
+                        @endif
+                        <span class="profile-photo-upload-copy">
+                            <strong>Foto do perfil</strong>
+                            <small>JPG, PNG ou WEBP ate 2 MB.</small>
+                        </span>
+                    </label>
+
+                    <div class="profile-edit-fields">
+                        <label>
+                            <span>Titulo</span>
+                            <input
+                                type="text"
+                                name="profile_title"
+                                value="{{ old('profile_title', $profileUser->profile_title) }}"
+                                maxlength="50"
+                                placeholder="Ex: dev"
+                                data-character-counter="profile-title-counter"
+                            >
+                            <small class="muted character-counter" id="profile-title-counter">0/50 caracteres</small>
+                        </label>
+
+                        <label>
+                            <span>Bio</span>
+                            <textarea
+                                name="bio"
+                                rows="4"
+                                maxlength="500"
+                                placeholder="Conte um pouco sobre voce..."
+                                data-character-counter="profile-bio-counter"
+                            >{{ old('bio', $profileUser->bio) }}</textarea>
+                            <small class="muted character-counter" id="profile-bio-counter">0/500 caracteres</small>
+                        </label>
+
+                        <button type="submit" class="primary-button">Salvar perfil</button>
+                    </div>
+                </form>
+            </section>
+        @endif
+
+        <section class="panel-grid">
+            @include('partials.contribution-grid', ['heatmap' => $heatmap])
+        </section>
+
+        <section class="panel-grid">
+            <div class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Registros</p>
+                        <h2>Ultimos dias</h2>
+                    </div>
+                </div>
+
+                <div class="feed-list">
+                    @forelse ($logs as $log)
+                        <article class="feed-item">
+                            <div class="feed-meta">
+                                <strong>{{ $log->title }}</strong>
+                                <span>{{ $log->log_date->format('d/m/Y') }}</span>
+                            </div>
+                            <p>{{ $log->content }}</p>
+                            <small>{{ $log->study_minutes }} min estudados</small>
+                        </article>
+                    @empty
+                        <p class="muted">Nenhum registro disponivel.</p>
+                    @endforelse
                 </div>
             </div>
 
-            <div class="feed-list">
-                @forelse ($logs as $log)
-                    <article class="feed-item">
-                        <div class="feed-meta">
-                            <strong>{{ $log->title }}</strong>
-                            <span>{{ $log->log_date->format('d/m/Y') }}</span>
-                        </div>
-                        <p>{{ $log->content }}</p>
-                        <small>{{ $log->study_minutes }} min estudados</small>
-                    </article>
-                @empty
-                    <p class="muted">Nenhum registro disponível.</p>
-                @endforelse
-            </div>
-        </div>
+            <div class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Sessoes</p>
+                        <h2>Historico recente</h2>
+                    </div>
+                </div>
 
-        <div class="panel">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Sessões</p>
-                    <h2>Histórico recente</h2>
+                <div class="session-list">
+                    @forelse ($sessions as $session)
+                        <article class="session-item">
+                            <div>
+                                <strong>{{ $session->subject }}</strong>
+                                <p class="muted">
+                                    {{ $session->started_at->format('d/m/Y H:i') }}
+                                    @if ($session->ended_at)
+                                        - {{ $session->ended_at->format('H:i') }}
+                                    @endif
+                                </p>
+                            </div>
+                            <span>{{ $session->duration_label }}</span>
+                        </article>
+                    @empty
+                        <p class="muted">Sem sessoes para mostrar.</p>
+                    @endforelse
                 </div>
             </div>
-
-            <div class="session-list">
-                @forelse ($sessions as $session)
-                    <article class="session-item">
-                        <div>
-                            <strong>{{ $session->subject }}</strong>
-                            <p class="muted">
-                                {{ $session->started_at->format('d/m/Y H:i') }}
-                                @if ($session->ended_at)
-                                    - {{ $session->ended_at->format('H:i') }}
-                                @endif
-                            </p>
-                        </div>
-                        <span>{{ $session->duration_label }}</span>
-                    </article>
-                @empty
-                    <p class="muted">Sem sessões para mostrar.</p>
-                @endforelse
-            </div>
-        </div>
-    </section>
+        </section>
+    </div>
 @endsection

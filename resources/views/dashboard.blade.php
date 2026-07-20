@@ -13,11 +13,15 @@
                 </a>
             </section>
 
-            <section class="sidebar-panel profile-card">
-                <div class="profile-avatar">{{ $profile['avatar'] }}</div>
+            <a class="sidebar-panel profile-card profile-card-link" href="{{ route('profile.show', $user) }}" aria-label="Abrir seu perfil">
+                @if ($profile['photo_url'])
+                    <img class="profile-avatar profile-avatar-image" src="{{ $profile['photo_url'] }}" alt="Foto de {{ $profile['title'] }}">
+                @else
+                    <div class="profile-avatar">{{ $profile['avatar'] }}</div>
+                @endif
                 <div class="profile-body">
-                    <h2>{{ $profile['display_name'] }}</h2>
-                    <p>@{{ $profile['username'] }}</p>
+                    <h2>{{ $profile['title'] }}</h2>
+                    <p>{{ '@'.$profile['username'] }}</p>
                     <span>{{ $profile['bio'] }}</span>
                 </div>
 
@@ -30,7 +34,7 @@
                         <div class="progress-fill progress-fill-violet" style="width: {{ $profile['xp_percent'] }}%"></div>
                     </div>
                 </div>
-            </section>
+            </a>
 
             <nav class="sidebar-panel sidebar-nav" aria-label="Navegacao principal">
                 @foreach ($sidebarItems as $item)
@@ -69,7 +73,6 @@
                     <div class="hero-chips">
                         <span class="hero-chip">{{ $streak }} dias</span>
                         <span class="hero-chip">{{ $totals['today_label'] }} hoje</span>
-                        <span class="hero-chip">{{ $profile['readme_words'] }} palavras no README</span>
                     </div>
                 </div>
 
@@ -226,7 +229,7 @@
             <section class="dashboard-panel projects-panel" id="projetos">
                 <div class="section-heading">
                     <div>
-                        <p class="eyebrow">Projetos e README</p>
+                        <p class="eyebrow">Projetos</p>
                         <h2>Edite seu perfil e acompanhe iniciativas</h2>
                     </div>
 
@@ -234,28 +237,6 @@
                 </div>
 
                 <div class="projects-grid">
-                    <article class="mini-panel">
-                        <div class="section-heading section-heading-tight">
-                            <div>
-                                <p class="eyebrow">README</p>
-                                <h3>Markdown do perfil</h3>
-                            </div>
-                        </div>
-
-                        <form action="{{ route('readme.update') }}" method="POST" class="quick-note-form">
-                            @csrf
-                            @method('PUT')
-
-                            <label>
-                                <span>README em markdown</span>
-                                <textarea name="readme_markdown" rows="8" maxlength="500" placeholder="# Sobre mim" data-character-counter="readme-counter">{{ old('readme_markdown', $user->readme_markdown ?: $user->defaultReadmeTemplate()) }}</textarea>
-                                <small class="muted character-counter" id="readme-counter">0/500 caracteres</small>
-                            </label>
-
-                            <button type="submit" class="secondary-button">Atualizar README</button>
-                        </form>
-                    </article>
-
                     <article class="mini-panel">
                         <div class="section-heading section-heading-tight">
                             <div>

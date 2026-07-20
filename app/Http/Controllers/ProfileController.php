@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\ActivityHeatmap;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -30,24 +31,48 @@ class ProfileController extends Controller
             'logs' => $logs,
             'sessions' => $sessions,
             'heatmap' => $heatmap,
-            'readme' => $user->readme_markdown ?: $user->defaultReadmeTemplate(),
             'streak' => $this->buildStreak($user->id),
         ]);
     }
 
-    public function updateReadme(Request $request)
+    public function update(Request $request)
     {
-        $data = $request->validate([
-            'readme_markdown' => ['required', 'string', 'max:500'],
-        ], [
-            'readme_markdown.max' => 'O README pode ter no maximo 500 caracteres.',
+        $request->merge([
+            'profile_title' => trim((string) $request->input('profile_title')),
+            'bio' => trim((string) $request->input('bio')),
         ]);
 
-        $request->user()->forceFill([
-            'readme_markdown' => trim($data['readme_markdown']),
-        ])->save();
+        $data = $request->validate([
+            'profile_title' => ['nullable', 'string', 'max:50'],
+            'bio' => ['nullable', 'string', 'max:500'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'profile_title.max' => 'O titulo pode ter no maximo 50 caracteres.',
+            'bio.max' => 'A bio pode ter no maximo 500 caracteres.',
+            'photo.image' => 'Envie uma imagem valida para o perfil.',
+            'photo.mimes' => 'A foto precisa ser JPG, PNG ou WEBP.',
+            'photo.max' => 'A foto do perfil pode ter no maximo 2 MB.',
+        ]);
 
-        return redirect()->route('dashboard')->with('status', 'README atualizado com sucesso.');
+        $user = $request->user();
+        $updates = [
+            'profile_title' => $data['profile_title'] ?: null,
+            'bio' => $data['bio'] ?: null,
+        ];
+
+        if ($request->hasFile('photo')) {
+            if ($user->profile_photo_path) {
+                Storage::disk('public')->delete($user->profile_photo_path);
+            }
+
+            $updates['profile_photo_path'] = $request->file('photo')->store('profile-photos', 'public');
+        }
+
+        $user->forceFill($updates)->save();
+
+        return redirect()
+            ->route('profile.show', $user)
+            ->with('status', 'Perfil atualizado com sucesso.');
     }
 
     private function buildStreak(int $userId): int
@@ -73,5 +98,4 @@ class ProfileController extends Controller
 
         return $streak;
     }
-
 }

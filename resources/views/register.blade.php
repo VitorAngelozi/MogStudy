@@ -37,7 +37,7 @@
 
                 <label>
                     <span>Bio</span>
-                    <textarea name="bio" rows="3" placeholder="Conte um pouco sobre sua rotina">{{ old('bio') }}</textarea>
+                    <textarea name="bio" rows="3" maxlength="500" placeholder="Conte um pouco sobre sua rotina">{{ old('bio') }}</textarea>
                 </label>
 
                 <label>

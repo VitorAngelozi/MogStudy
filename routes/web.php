@@ -37,7 +37,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/study-sessions', [StudySessionController::class, 'store'])->name('study-sessions.store');
     Route::post('/study-sessions/{studySession}/stop', [StudySessionController::class, 'stop'])->name('study-sessions.stop');
     Route::post('/daily-logs', [DailyLogController::class, 'store'])->name('daily-logs.store');
-    Route::put('/readme', [ProfileController::class, 'updateReadme'])->name('readme.update');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
 
 Route::get('/u/{user:username}', [ProfileController::class, 'show'])->name('profile.show');
