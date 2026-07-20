@@ -591,7 +591,10 @@ class MogStudyFlowTest extends TestCase
             $this->actingAs($user)
                 ->get(route('dashboard'))
                 ->assertOk()
+                ->assertSeeText('Foco atual')
+                ->assertSee('class="subject-row-head"', false)
                 ->assertSeeText('Meta: 2h por semana')
+                ->assertSeeText('Progresso 50%')
                 ->assertSeeText('50%');
         } finally {
             Carbon::setTestNow();
@@ -1017,6 +1020,9 @@ class MogStudyFlowTest extends TestCase
                 ->get(route('dashboard'))
                 ->assertOk()
                 ->assertSeeText('Ciclo de estudos')
+                ->assertSee('class="circle-feed circle-timeline"', false)
+                ->assertSeeText('Publicacao')
+                ->assertSeeText('Sessao de estudo')
                 ->assertSeeText('Deploy estudado')
                 ->assertSeeText('Revisei filas e cache.')
                 ->assertSeeText('Mandou bem!')

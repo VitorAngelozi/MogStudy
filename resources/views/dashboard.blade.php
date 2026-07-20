@@ -229,22 +229,24 @@
                         @forelse ($subjects as $subject)
                             <article class="subject-row">
                                 <div class="subject-row-main">
-                                    @if ($subject['photo_url'])
-                                        <img class="subject-photo" src="{{ $subject['photo_url'] }}" alt="Foto de {{ $subject['name'] }}">
-                                    @else
-                                        <span class="subject-icon subject-icon-{{ $subject['tone'] }}">
-                                            @include('partials.dashboard.icon', ['name' => $subject['icon'], 'class' => 'icon-svg'])
-                                        </span>
-                                    @endif
+                                    <div class="subject-row-head">
+                                        @if ($subject['photo_url'])
+                                            <img class="subject-photo" src="{{ $subject['photo_url'] }}" alt="Foto de {{ $subject['name'] }}">
+                                        @else
+                                            <span class="subject-icon subject-icon-{{ $subject['tone'] }}">
+                                                @include('partials.dashboard.icon', ['name' => $subject['icon'], 'class' => 'icon-svg'])
+                                            </span>
+                                        @endif
 
-                                    <div class="subject-copy">
-                                        <strong>{{ $subject['name'] }}</strong>
-                                        <p>{{ $subject['hours_label'] }}</p>
-                                        <small>{{ $subject['goal_label'] }}</small>
+                                        <div class="subject-copy">
+                                            <strong>{{ $subject['name'] }}</strong>
+                                            <p>{{ $subject['hours_label'] }}</p>
+                                            <small>{{ $subject['goal_label'] }}</small>
+                                        </div>
                                     </div>
 
                                     <div class="subject-progress">
-                                        <span>{{ $subject['goal_progress'] }}%</span>
+                                        <span>Progresso {{ $subject['goal_progress'] }}%</span>
                                         <div class="progress-track progress-track-small">
                                             <div class="progress-fill progress-fill-violet" style="width: {{ $subject['goal_progress'] }}%"></div>
                                         </div>
@@ -270,10 +272,14 @@
                     <div>
                         <p class="eyebrow">Ciclo social</p>
                         <h2>Ciclo de estudos</h2>
+                        <p class="section-subtitle">Novidades, posts e sessoes recentes do seu ciclo.</p>
                     </div>
 
                     <details class="circle-compose">
-                        <summary class="circle-compose-button" aria-label="Criar post no ciclo">+</summary>
+                        <summary class="circle-compose-button" aria-label="Criar post no ciclo">
+                            <span>+</span>
+                            <strong>Novo post</strong>
+                        </summary>
                         <form action="{{ route('circle-posts.store') }}" method="POST" class="circle-compose-form">
                             @csrf
                             <label>
@@ -290,46 +296,76 @@
                 </div>
 
                 <div class="circle-layout">
-                    <div class="circle-feed">
+                    <div class="circle-feed circle-timeline">
                         @forelse ($circle['feed'] as $item)
                             @if ($item['type'] === 'post')
                                 @php($post = $item['post'])
-                                <article class="circle-post">
-                                    <div class="feed-meta">
-                                        <strong>{{ $post->user->displayName() }} publicou: {{ $post->title }}</strong>
-                                        <span>{{ $post->created_at->diffForHumans() }}</span>
+                                @php($postInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($post->user->displayName(), 0, 1)))
+                                <article class="circle-post circle-timeline-item">
+                                    <div class="circle-timeline-marker">
+                                        <span class="circle-avatar">{{ $postInitial }}</span>
+                                        <span class="circle-event-icon circle-event-icon-post">
+                                            @include('partials.dashboard.icon', ['name' => 'notes', 'class' => 'icon-svg'])
+                                        </span>
                                     </div>
-                                    <p>{{ $post->body }}</p>
 
-                                    <div class="circle-replies">
-                                        @foreach ($post->replies->take(3) as $reply)
-                                            <div class="circle-reply">
-                                                <strong>{{ $reply->user->displayName() }}</strong>
-                                                <span>{{ $reply->body }}</span>
+                                    <div class="circle-card-content">
+                                        <div class="circle-card-head">
+                                            <div>
+                                                <span class="circle-kicker">Publicacao</span>
+                                                <h3>{{ $post->user->displayName() }} publicou: {{ $post->title }}</h3>
                                             </div>
-                                        @endforeach
-                                    </div>
+                                            <time>{{ $post->created_at->diffForHumans() }}</time>
+                                        </div>
 
-                                    <form action="{{ route('circle-posts.replies.store', $post) }}" method="POST" class="circle-reply-form">
-                                        @csrf
-                                        <input type="text" name="body" maxlength="200" placeholder="Responder em ate 200 caracteres..." required>
-                                        <button type="submit" class="mini-button">Responder</button>
-                                    </form>
+                                        <p class="circle-body">{{ $post->body }}</p>
+
+                                        @if ($post->replies->isNotEmpty())
+                                            <div class="circle-replies">
+                                                <span class="circle-thread-label">Respostas recentes</span>
+                                                @foreach ($post->replies->take(3) as $reply)
+                                                    <div class="circle-reply">
+                                                        <strong>{{ $reply->user->displayName() }}</strong>
+                                                        <span>{{ $reply->body }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        <form action="{{ route('circle-posts.replies.store', $post) }}" method="POST" class="circle-reply-form">
+                                            @csrf
+                                            <input type="text" name="body" maxlength="200" placeholder="Responder em ate 200 caracteres..." required>
+                                            <button type="submit" class="mini-button">Responder</button>
+                                        </form>
+                                    </div>
                                 </article>
                             @else
                                 @php($session = $item['session'])
-                                <article class="circle-post circle-session">
-                                    <div class="feed-meta">
-                                        <strong>{{ $session->user->displayName() }} comecou a estudar {{ $session->subject }}</strong>
-                                        <span>{{ $session->started_at->diffForHumans() }}</span>
+                                @php($sessionInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($session->user->displayName(), 0, 1)))
+                                <article class="circle-post circle-session circle-timeline-item">
+                                    <div class="circle-timeline-marker">
+                                        <span class="circle-avatar">{{ $sessionInitial }}</span>
+                                        <span class="circle-event-icon circle-event-icon-session">
+                                            @include('partials.dashboard.icon', ['name' => 'clock', 'class' => 'icon-svg'])
+                                        </span>
                                     </div>
-                                    <p>{{ $session->ended_at ? 'Sessao finalizada: '.$session->duration_label : 'Sessao em andamento agora.' }}</p>
+
+                                    <div class="circle-card-content">
+                                        <div class="circle-card-head">
+                                            <div>
+                                                <span class="circle-kicker">Sessao de estudo</span>
+                                                <h3>{{ $session->user->displayName() }} comecou a estudar {{ $session->subject }}</h3>
+                                            </div>
+                                            <time>{{ $session->started_at->diffForHumans() }}</time>
+                                        </div>
+                                        <p class="circle-body">{{ $session->ended_at ? 'Sessao finalizada: '.$session->duration_label : 'Sessao em andamento agora.' }}</p>
+                                    </div>
                                 </article>
                             @endif
                         @empty
-                            <div class="empty-state">
+                            <div class="empty-state circle-empty-state">
                                 <strong>Seu ciclo ainda esta quieto.</strong>
-                                <p>Publique uma novidade ou adicione amigos para ver atividades aqui.</p>
+                                <p>Publique uma novidade no botao acima ou adicione amigos pelos perfis para montar sua timeline de estudos.</p>
                             </div>
                         @endforelse
                     </div>
