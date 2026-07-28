@@ -9,7 +9,8 @@ class StudyGroupMember < ApplicationRecord
 
   validates :role, presence: true
 
+  # Only owners and admins may manage focus rooms inside a group.
   def can_manage_focus_rooms?
-    [ROLE_OWNER, ROLE_ADMIN].include?(role)
+    [ ROLE_OWNER, ROLE_ADMIN ].include?(role)
   end
 end

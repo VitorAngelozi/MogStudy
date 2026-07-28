@@ -13,9 +13,9 @@ Rails.application.routes.draw do
   get "/dashboard", to: "dashboard#index", as: :dashboard
   get "/friend-search", to: "dashboard#friend_search", as: :friend_search
 
-  resources :study_subjects, path: "study-subjects", only: [:index, :create, :update, :destroy]
+  resources :study_subjects, path: "study-subjects", only: [ :index, :create, :update, :destroy ]
 
-  resources :study_sessions, path: "study-sessions", only: [:create] do
+  resources :study_sessions, path: "study-sessions", only: [ :create ] do
     member do
       post :pause
       post :resume
@@ -23,7 +23,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :daily_logs, path: "daily-logs", only: [:create]
+  resources :daily_logs, path: "daily-logs", only: [ :create ]
 
   post "/friendships/:user_id", to: "friendships#create", as: :friendships
   post "/friendships/:id/accept", to: "friendships#accept", as: :accept_friendship
@@ -32,7 +32,7 @@ Rails.application.routes.draw do
   post "/circle-posts", to: "circle_posts#create", as: :circle_posts
   post "/circle-posts/:circle_post_id/replies", to: "circle_posts#reply", as: :circle_post_replies
 
-  resources :study_groups, param: :code, path: "study-groups", only: [:index, :show, :create, :update] do
+  resources :study_groups, param: :code, path: "study-groups", only: [ :index, :show, :create, :update ] do
     collection do
       post :join_by_code
     end

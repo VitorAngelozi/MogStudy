@@ -12,7 +12,7 @@ module MogStudy
     config.load_defaults 8.1
     config.time_zone = "America/Cuiaba"
     config.i18n.default_locale = :"pt-BR"
-    config.i18n.available_locales = [:"pt-BR", :en]
+    config.i18n.available_locales = [ :"pt-BR", :en ]
     config.action_view.form_with_generates_remote_forms = false
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do

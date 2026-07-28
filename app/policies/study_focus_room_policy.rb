@@ -18,6 +18,6 @@ class StudyFocusRoomPolicy < ApplicationPolicy
   private
 
   def can_manage?
-    record.study_group.members.where(user_id: user&.id).where(role: [StudyGroupMember::ROLE_OWNER, StudyGroupMember::ROLE_ADMIN]).exists?
+    record.study_group.members.where(user_id: user&.id).where(role: [ StudyGroupMember::ROLE_OWNER, StudyGroupMember::ROLE_ADMIN ]).exists?
   end
 end

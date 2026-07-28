@@ -272,17 +272,24 @@
         <% end %>
 
         <div class="feed-list">
-          <% @recent_activity.each do |item| %>
-            <article class="feed-item">
-              <span class="feed-avatar feed-avatar-<%= item[:accent] %>"><%= item[:avatar] %></span>
-              <div class="feed-content">
-                <div class="feed-meta">
-                  <strong><%= item[:title] %></strong>
-                  <span><%= item[:when] %></span>
+          <% if @recent_activity.any? %>
+            <% @recent_activity.each do |item| %>
+              <article class="feed-item">
+                <span class="feed-avatar feed-avatar-<%= item[:accent] %>"><%= item[:avatar] %></span>
+                <div class="feed-content">
+                  <div class="feed-meta">
+                    <strong><%= item[:title] %></strong>
+                    <span><%= item[:when] %></span>
+                  </div>
+                  <p><%= item[:detail] %></p>
                 </div>
-                <p><%= item[:detail] %></p>
-              </div>
-            </article>
+              </article>
+            <% end %>
+          <% else %>
+            <div class="empty-state compact-empty">
+              <strong>Nenhuma atividade recente ainda.</strong>
+              <p>Quando voce salvar um diario ou fechar uma sessao, ela aparece aqui.</p>
+            </div>
           <% end %>
         </div>
       </article>
@@ -625,17 +632,24 @@
       </div>
 
       <div class="achievement-list">
-        <% @achievements.each do |achievement| %>
-          <article class="achievement-item">
-            <span class="achievement-icon achievement-icon-<%= achievement[:tone] %>">
-              <%= render "shared/icon", name: achievement[:icon], class: "icon-svg" %>
-            </span>
-            <div class="achievement-copy">
-              <strong><%= achievement[:title] %></strong>
-              <p><%= achievement[:detail] %></p>
-            </div>
-            <span class="achievement-time"><%= achievement[:when] %></span>
-          </article>
+        <% if @achievements.any? %>
+          <% @achievements.each do |achievement| %>
+            <article class="achievement-item">
+              <span class="achievement-icon achievement-icon-<%= achievement[:tone] %>">
+                <%= render "shared/icon", name: achievement[:icon], class: "icon-svg" %>
+              </span>
+              <div class="achievement-copy">
+                <strong><%= achievement[:title] %></strong>
+                <p><%= achievement[:detail] %></p>
+              </div>
+              <span class="achievement-time"><%= achievement[:when] %></span>
+            </article>
+          <% end %>
+        <% else %>
+          <div class="empty-state compact-empty">
+            <strong>Sem conquistas ainda.</strong>
+            <p>Complete sessoes, salve diarios e mantenha a sequencia para gerar conquistas reais.</p>
+          </div>
         <% end %>
       </div>
     </section>

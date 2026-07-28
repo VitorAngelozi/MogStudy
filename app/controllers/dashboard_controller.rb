@@ -23,16 +23,18 @@ class DashboardController < AuthenticatedController
     @goal = build_goal(study_subjects)
     @profile = build_profile_summary(user, totals)
     @recent_activity = build_recent_activity(user, recent_sessions, recent_logs)
-    @achievements = build_achievements(recent_logs)
     @circle = build_circle(user)
     @study_groups = build_study_groups_summary(user)
     @friend_notifications = build_friend_notifications(user)
     @friend_search = build_friend_search(params[:friend_search], user)
     @sidebar_items = build_sidebar_items(user)
-    @metrics = build_metrics(totals, study_subjects.count)
     @streak = build_streak(user.id)
+    @achievements = build_achievements(totals, @streak, @goal)
+    @metrics = build_metrics(totals, study_subjects.count, @goal)
     @greeting = greeting_for_hour(Time.zone.now.hour)
     @hero_subtitle = @current_session ? "Pronto para continuar a sessao em andamento?" : "Pronto para mais uma sessao de foco?"
+    # The live timer must continue from persisted study time so pause/resume
+    # cycles do not reset the visible elapsed counter.
     current_session_base_seconds = @current_session ? finished_seconds_today_for_current_subject(user, @current_session, today) : 0
     timer_elapsed_seconds = @current_session ? current_session_base_seconds + @current_session.effective_elapsed_seconds : totals[:seconds_today]
 
@@ -72,7 +74,7 @@ class DashboardController < AuthenticatedController
 
   def build_profile_summary(user, totals)
     experience = ((totals[:seconds_total] / 60) * 8) + (totals[:sessions_total] * 35) + (totals[:logs_total] * 25)
-    level = [experience / 500 + 1, 1].max
+    level = [ experience / 500 + 1, 1 ].max
     xp_current = experience % 500
 
     {
@@ -86,7 +88,7 @@ class DashboardController < AuthenticatedController
       xp: experience,
       xp_current: xp_current,
       xp_goal: 500,
-      xp_percent: [(xp_current.to_f / 500 * 100).round, 100].min
+      xp_percent: [ (xp_current.to_f / 500 * 100).round, 100 ].min
     }
   end
 
@@ -95,8 +97,8 @@ class DashboardController < AuthenticatedController
     target_minutes = subjects_with_goals.sum { |subject| subject.goal_minutes.to_i }
     done_seconds = subjects_with_goals.sum { |subject| subject.duration_seconds_week.to_i }
     target_seconds = target_minutes * 60
-    remaining_seconds = [target_seconds - done_seconds, 0].max
-    progress = target_seconds.positive? ? [(done_seconds.to_f / target_seconds * 100).round, 100].min : 0
+    remaining_seconds = [ target_seconds - done_seconds, 0 ].max
+    progress = target_seconds.positive? ? [ (done_seconds.to_f / target_seconds * 100).round, 100 ].min : 0
 
     {
       title: "Metas semanais",
@@ -109,16 +111,16 @@ class DashboardController < AuthenticatedController
       target_label: format_minutes_as_hours(target_minutes),
       remaining_label: format_seconds_as_hours(remaining_seconds),
       subjects_count: subjects_with_goals.count,
-      bars: [2, 4, 6, 7, 10, 14, 8, 11, 15, 9, 12, 16, 7, 5, 4, 10, 13, 6, 9, 12, 11, 7, 5, 3]
+      bars: [ 2, 4, 6, 7, 10, 14, 8, 11, 15, 9, 12, 16, 7, 5, 4, 10, 13, 6, 9, 12, 11, 7, 5, 3 ]
     }
   end
 
-  def build_metrics(totals, subjects_total)
+  def build_metrics(totals, subjects_total, goal)
     [
       { label: "Horas estudadas", value: format_seconds_as_hours(totals[:seconds_total]), icon: "clock", tone: "violet", subtext: "tempo acumulado" },
       { label: "Sessoes", value: totals[:sessions_total], icon: "calendar", tone: "emerald", subtext: "registros fechados" },
       { label: "Materias", value: subjects_total, icon: "book", tone: "cyan", subtext: "areas em foco" },
-      { label: "Meta semanal", value: "92%", icon: "trophy", tone: "amber", subtext: "ritmo consistente" }
+      { label: "Meta semanal", value: goal[:has_goal] ? "#{goal[:progress]}%" : "0%", icon: "trophy", tone: "amber", subtext: "ritmo consistente" }
     ]
   end
 
@@ -136,35 +138,37 @@ class DashboardController < AuthenticatedController
     ]
   end
 
+  # Build the activity feed only from persisted records. When there is no
+  # actual activity yet, the view renders an empty state instead of sample data.
   def build_recent_activity(user, recent_sessions, recent_logs)
     items = []
 
     if recent_logs.any?
       log = recent_logs.first
       items << {
+        sort_at: log.created_at || log.updated_at || log.log_date&.to_time,
         avatar: helpers.avatar_initial(user.display_name),
-        title: "Voce estudou #{log.title}",
+        title: "Diario salvo: #{log.title}",
         detail: log.content.to_s.truncate(48),
         when: log.created_at ? helpers.time_ago_in_words(log.created_at) + " atras" : helpers.time_ago_in_words(log.log_date) + " atras",
         accent: "violet"
       }
     end
 
-    if recent_sessions.any?
-      session = recent_sessions.first
+    recent_sessions.first(2).each do |session|
       items << {
+        sort_at: session.started_at,
         avatar: "S",
-        title: "Sessao criada em #{session.subject}",
-        detail: "#{format_timer(session.duration_seconds)} · #{session.notes.presence || 'sem observacoes'}",
+        title: session.ended_at ? "Sessao finalizada em #{session.subject}" : "Sessao em andamento em #{session.subject}",
+        detail: "#{format_timer(session.duration_seconds)} | #{session.notes.presence || 'sem observacoes'}",
         when: helpers.time_ago_in_words(session.started_at) + " atras",
         accent: "emerald"
       }
     end
 
-    items << { avatar: "M", title: "Maria completou um curso de SQL", detail: "Parabens pela conquista!", when: "ha 5h", accent: "amber" }
-    items << { avatar: "L", title: "Lucas criou uma nova sessao de foco", detail: "4h de Java e mais um bloco fechado.", when: "ha 7h", accent: "cyan" }
-
-    items.first(4)
+    items.sort_by { |item| -(item[:sort_at]&.to_i || 0) }
+         .map { |item| item.except(:sort_at) }
+         .first(4)
   end
 
   def build_study_groups_summary(user)
@@ -194,7 +198,7 @@ class DashboardController < AuthenticatedController
 
   def build_circle(user)
     friend_ids = user.accepted_friend_ids.uniq
-    circle_user_ids = (friend_ids + [user.id]).uniq
+    circle_user_ids = (friend_ids + [ user.id ]).uniq
 
     posts = CirclePost.includes(:user, replies: :user).where(user_id: circle_user_ids).order(created_at: :desc).limit(5)
     friend_sessions = StudySession.includes(:user).where(user_id: friend_ids).order(started_at: :desc).limit(5)
@@ -298,12 +302,46 @@ class DashboardController < AuthenticatedController
     scope.sum(:duration_seconds).to_i
   end
 
-  def build_achievements(recent_logs)
-    [
-      { icon: "fire", title: "#{[3, recent_logs.count].max} dias consecutivos", detail: "Estude por varios dias seguidos", when: "ha 1d", tone: "fire" },
-      { icon: "medal", title: "100 horas", detail: "Acumule 100 horas de estudos", when: "ha 3d", tone: "gold" },
-      { icon: "sun", title: "Madrugador", detail: "Estude antes das 7h", when: "ha 5d", tone: "sun" }
-    ]
+  # Achievements are derived from real study data only. If the user has not
+  # reached any meaningful milestone yet, the view will show an empty state.
+  def build_achievements(totals, streak, goal)
+    achievements = []
+
+    achievements << {
+      icon: "clock",
+      title: "#{format_seconds_as_hours(totals[:seconds_total])} estudadas",
+      detail: "Tempo total acumulado nos registros concluídos.",
+      when: "agora",
+      tone: "violet"
+    } if totals[:seconds_total].positive?
+
+    achievements << {
+      icon: "fire",
+      title: "#{streak} dias consecutivos",
+      detail: "Sequencia atual baseada nos diarios salvos.",
+      when: "agora",
+      tone: "fire"
+    } if streak.positive?
+
+    if goal[:has_goal]
+      achievements << {
+        icon: "target",
+        title: "#{goal[:progress]}% da meta semanal",
+        detail: "Progresso real das materias com meta.",
+        when: "agora",
+        tone: "amber"
+      }
+    elsif totals[:sessions_total].positive?
+      achievements << {
+        icon: "calendar",
+        title: "#{totals[:sessions_total]} sessoes fechadas",
+        detail: "Historico real de sessoes concluidas.",
+        when: "agora",
+        tone: "emerald"
+      }
+    end
+
+    achievements.first(3)
   end
 
   def greeting_for_hour(hour)

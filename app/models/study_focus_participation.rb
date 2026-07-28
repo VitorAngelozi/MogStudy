@@ -14,10 +14,12 @@ class StudyFocusParticipation < ApplicationRecord
     Time.at(duration_seconds.to_i).utc.strftime("%H:%M:%S")
   end
 
+  # Focus-room participation mirrors the same elapsed-time logic as study
+  # sessions so the public presence JSON and the timer widget stay in sync.
   def effective_elapsed_seconds
     end_time = ended_at || paused_at || Time.current
     paused_total = paused_seconds.to_i
-    [(end_time.to_i - started_at.to_i) - paused_total, 0].max
+    [ (end_time.to_i - started_at.to_i) - paused_total, 0 ].max
   end
 
   def paused?

@@ -56,7 +56,7 @@ class StudySessionsController < AuthenticatedController
     end
 
     ended_at = Time.current
-    duration_seconds = [session.effective_elapsed_seconds, 1].max
+    duration_seconds = [ session.effective_elapsed_seconds, 1 ].max
     session.update!(ended_at: ended_at, paused_at: nil, duration_seconds: duration_seconds)
 
     session.study_focus_participations.active.update_all(

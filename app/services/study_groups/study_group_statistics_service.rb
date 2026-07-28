@@ -33,6 +33,8 @@ module StudyGroups
 
     private
 
+    # This query combines finished sessions and currently running sessions so
+    # the dashboard can show a stable "studied today" total.
     def seconds_for_query(query)
       today = Time.zone.today
       finished = query.where.not(ended_at: nil).where(started_at: today.all_day).sum(:duration_seconds).to_i

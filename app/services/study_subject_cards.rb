@@ -1,6 +1,6 @@
 class StudySubjectCards
   def build(study_subjects)
-    max_seconds = [study_subjects.map(&:duration_seconds_total).max.to_i, 1].max
+    max_seconds = [ study_subjects.map(&:duration_seconds_total).max.to_i, 1 ].max
     tones = %w[violet cyan amber emerald indigo]
     icons = %w[book book book book target]
 
@@ -33,7 +33,7 @@ class StudySubjectCards
   private
 
   def recent_activity_date(subject)
-    [subject.updated_at, subject.created_at, subject.last_studied_at].compact.max
+    [ subject.updated_at, subject.created_at, subject.last_studied_at ].compact.max
   end
 
   def build_subject_goal_progress(subject, total_seconds, max_seconds)
@@ -42,7 +42,7 @@ class StudySubjectCards
     end
 
     period_seconds = subject.duration_seconds_week.to_i
-    [((period_seconds / 60.0) / [subject.goal_minutes.to_i, 1].max * 100).round, 100].min
+    [ ((period_seconds / 60.0) / [ subject.goal_minutes.to_i, 1 ].max * 100).round, 100 ].min
   end
 
   def build_subject_goal_label(subject)

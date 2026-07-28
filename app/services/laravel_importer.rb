@@ -11,6 +11,8 @@ class LaravelImporter
   def run
     raise ArgumentError, "SOURCE_DATABASE_URL is required" if @database_url.blank?
 
+    # Import order matters: parents are loaded before dependent rows so we can
+    # keep foreign keys and identifiers stable across repeated runs.
     SourceBase.establish_connection(@database_url)
 
     import_users
@@ -270,6 +272,8 @@ class LaravelImporter
     file_path = File.join(@storage_root, relative_path)
     return unless File.exist?(file_path)
 
+    # Preserve the original file contents from Laravel storage without
+    # re-downloading or rewriting already attached blobs.
     attachment.attach(
       io: File.open(file_path),
       filename: File.basename(file_path)

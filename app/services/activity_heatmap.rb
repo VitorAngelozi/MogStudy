@@ -30,7 +30,7 @@ class ActivityHeatmap
     end
 
     {
-      rows: ["Seg", "", "Qua", "", "Sex", "", "Dom"],
+      rows: [ "Seg", "", "Qua", "", "Sex", "", "Dom" ],
       weeks: weeks,
       months: build_month_labels(weeks, started_at, ended_at),
       total_days: 365,

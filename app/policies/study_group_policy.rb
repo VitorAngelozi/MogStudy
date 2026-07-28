@@ -27,7 +27,7 @@ class StudyGroupPolicy < ApplicationPolicy
   end
 
   def manage_focus_rooms?
-    [StudyGroupMember::ROLE_OWNER, StudyGroupMember::ROLE_ADMIN].include?(member_role)
+    [ StudyGroupMember::ROLE_OWNER, StudyGroupMember::ROLE_ADMIN ].include?(member_role)
   end
 
   def start_focus_study?

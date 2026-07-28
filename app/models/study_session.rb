@@ -10,10 +10,12 @@ class StudySession < ApplicationRecord
     Time.at(duration_seconds.to_i).utc.strftime("%H:%M:%S")
   end
 
+  # Elapsed time keeps subtracting paused windows so the timer stays correct
+  # even when a session is paused and resumed multiple times.
   def effective_elapsed_seconds
     end_time = ended_at || paused_at || Time.current
     paused_total = paused_seconds.to_i
-    [(end_time.to_i - started_at.to_i) - paused_total, 0].max
+    [ (end_time.to_i - started_at.to_i) - paused_total, 0 ].max
   end
 
   def paused?

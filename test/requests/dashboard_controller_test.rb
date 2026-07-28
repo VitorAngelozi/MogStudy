@@ -51,4 +51,24 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "friend", payload["results"].first["username"]
     assert_equal "accepted", payload["results"].first["friendship"]["state"]
   end
+
+  test "dashboard shows empty states when there is no recent activity or achievements" do
+    user = User.create!(
+      username: "quietuser",
+      display_name: "Quiet User",
+      email: "quiet@example.com",
+      password: "password123",
+      password_confirmation: "password123"
+    )
+
+    sign_in_as(user)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_match "Nenhuma atividade recente ainda.", response.body
+    assert_match "Sem conquistas ainda.", response.body
+    refute_match "Maria completou", response.body
+    refute_match "Lucas criou", response.body
+  end
 end

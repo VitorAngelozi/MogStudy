@@ -25,7 +25,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.string :photo_path
       t.timestamps
     end
-    add_index :study_subjects, [:user_id, :name], unique: true
+    add_index :study_subjects, [ :user_id, :name ], unique: true
 
     create_table :study_sessions do |t|
       t.references :user, null: false, foreign_key: true
@@ -54,7 +54,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.integer :study_minutes, default: 0, null: false
       t.timestamps
     end
-    add_index :daily_logs, [:user_id, :log_date], unique: true
+    add_index :daily_logs, [ :user_id, :log_date ], unique: true
 
     create_table :friendships do |t|
       t.references :requester, null: false, foreign_key: { to_table: :users }
@@ -62,7 +62,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.string :status, null: false
       t.timestamps
     end
-    add_index :friendships, [:requester_id, :addressee_id], unique: true
+    add_index :friendships, [ :requester_id, :addressee_id ], unique: true
 
     create_table :circle_posts do |t|
       t.references :user, null: false, foreign_key: true
@@ -97,7 +97,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.datetime :joined_at
       t.timestamps
     end
-    add_index :study_group_members, [:study_group_id, :user_id], unique: true
+    add_index :study_group_members, [ :study_group_id, :user_id ], unique: true
 
     create_table :study_focus_rooms do |t|
       t.references :study_group, null: false, foreign_key: true
@@ -108,7 +108,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.boolean :is_active, default: true, null: false
       t.timestamps
     end
-    add_index :study_focus_rooms, [:study_group_id, :position]
+    add_index :study_focus_rooms, [ :study_group_id, :position ]
 
     create_table :study_focus_participations do |t|
       t.references :study_focus_room, null: false, foreign_key: true
@@ -144,7 +144,7 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.datetime :left_at
       t.timestamps
     end
-    add_index :study_room_participants, [:study_room_id, :user_id], unique: true
+    add_index :study_room_participants, [ :study_room_id, :user_id ], unique: true
 
     create_table :active_storage_blobs do |t|
       t.string   :key,          null: false
@@ -164,12 +164,12 @@ class CreateMogstudyCoreSchema < ActiveRecord::Migration[8.1]
       t.references :blob,     null: false, foreign_key: { to_table: :active_storage_blobs }
       t.datetime :created_at, precision: 6, null: false
     end
-    add_index :active_storage_attachments, [:record_type, :record_id, :name, :blob_id], unique: true, name: "index_active_storage_attachments_uniqueness"
+    add_index :active_storage_attachments, [ :record_type, :record_id, :name, :blob_id ], unique: true, name: "index_active_storage_attachments_uniqueness"
 
     create_table :active_storage_variant_records do |t|
       t.references :blob, null: false, foreign_key: { to_table: :active_storage_blobs }
       t.string :variation_digest, null: false
     end
-    add_index :active_storage_variant_records, [:blob_id, :variation_digest], unique: true, name: "index_active_storage_variant_records_uniqueness"
+    add_index :active_storage_variant_records, [ :blob_id, :variation_digest ], unique: true, name: "index_active_storage_variant_records_uniqueness"
   end
 end
