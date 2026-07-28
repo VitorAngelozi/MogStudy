@@ -1,0 +1,36 @@
+<% content_for :title, "Criar grupo - MogStudy" %>
+
+<div class="container">
+  <section class="hero subjects-hero study-groups-hero">
+    <div>
+      <p class="eyebrow">Novo grupo</p>
+      <h1>Criar uma comunidade de foco</h1>
+      <p class="lead">Defina nome, descrição e visibilidade para organizar os estudos em grupo.</p>
+    </div>
+    <div class="subjects-hero-actions">
+      <%= link_to "Voltar", study_groups_path, class: "secondary-button" %>
+    </div>
+  </section>
+
+  <section class="panel">
+    <%= form_with scope: :study_group, url: study_groups_path, method: :post, class: "study-room-form", local: true do |form| %>
+      <label>
+        <span>Nome</span>
+        <%= form.text_field :name, required: true, maxlength: 120 %>
+      </label>
+      <label>
+        <span>Descricao</span>
+        <%= form.text_area :description, rows: 3, maxlength: 300 %>
+      </label>
+      <label>
+        <span>Visibilidade</span>
+        <%= form.select :visibility, [["Publico", StudyGroup::VISIBILITY_PUBLIC], ["Somente amigos", StudyGroup::VISIBILITY_FRIENDS], ["Privado com senha", StudyGroup::VISIBILITY_PASSWORD]] %>
+      </label>
+      <label>
+        <span>Senha do grupo</span>
+        <%= password_field_tag "study_group[password]", nil, maxlength: 40 %>
+      </label>
+      <%= form.submit "Criar grupo", class: "primary-button full-width" %>
+    <% end %>
+  </section>
+</div>

@@ -1,0 +1,11 @@
+<% user = local_assigns.fetch(:user) %>
+<% css_class = local_assigns.fetch(:class, "friend-avatar") %>
+<% display_name = user&.display_name || "Usuario" %>
+<% photo_url = user&.profile_photo_url %>
+<% initial = avatar_initial(display_name) %>
+
+<% if photo_url.present? %>
+  <img src="<%= photo_url %>" alt="Foto de <%= display_name %>" class="<%= css_class %> friend-avatar-image">
+<% else %>
+  <span class="<%= css_class %>"><%= initial %></span>
+<% end %>

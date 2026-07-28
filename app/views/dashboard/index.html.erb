@@ -1,0 +1,643 @@
+<% content_for :title, "Dashboard - MogStudy" %>
+
+<div class="dashboard-shell" id="inicio">
+  <aside class="dashboard-sidebar">
+    <section class="sidebar-panel brand-panel">
+      <%= link_to dashboard_path, class: "brand brand-large" do %>
+        <span class="brand-mark brand-mark-lg">M</span>
+        <span>
+          <strong>MogStudy</strong>
+          <small>GitHub de estudos</small>
+        </span>
+      <% end %>
+    </section>
+
+    <%= link_to profile_path(current_user), class: "sidebar-panel profile-card profile-card-link", aria: { label: "Abrir seu perfil" } do %>
+      <% if @profile[:photo_url].present? %>
+        <img class="profile-avatar profile-avatar-image" src="<%= @profile[:photo_url] %>" alt="Foto de <%= @profile[:title] %>">
+      <% else %>
+        <div class="profile-avatar"><%= @profile[:avatar] %></div>
+      <% end %>
+      <div class="profile-body">
+        <h2><%= @profile[:title] %></h2>
+        <p>@<%= @profile[:username] %></p>
+        <span><%= @profile[:bio] %></span>
+      </div>
+
+      <div class="profile-level">
+        <div class="profile-level-head">
+          <strong>Nivel <%= @profile[:level] %></strong>
+          <span><%= @profile[:xp_current] %>/<%= @profile[:xp_goal] %> XP</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill progress-fill-violet" style="width: <%= @profile[:xp_percent] %>%"></div>
+        </div>
+      </div>
+    <% end %>
+
+    <nav class="sidebar-panel sidebar-nav" aria-label="Navegacao principal">
+      <% @sidebar_items.each do |item| %>
+        <a href="<%= item[:href] %>" class="sidebar-nav-item <%= "is-active" if item[:active] %>">
+          <span class="sidebar-icon"><%= render "shared/icon", name: item[:icon], class: "icon-svg" %></span>
+          <span><%= item[:label] %></span>
+        </a>
+      <% end %>
+    </nav>
+
+    <section
+      class="sidebar-panel sidebar-cta"
+      data-friend-search
+      data-friend-search-url="<%= friend_search_path %>"
+      data-friend-search-empty="Dica: compartilhe seu @<%= @profile[:username] %> com amigos."
+    >
+      <div>
+        <p class="eyebrow">Encontrar amigos</p>
+        <h3>Busque pelo @username da pessoa.</h3>
+        <p>Use o nome publico ou o identificador unico para adicionar alguem ao seu ciclo.</p>
+      </div>
+
+      <%= form_with url: dashboard_path, method: :get, class: "friend-search-form", data: { friend_search_form: true }, local: true do %>
+        <label>
+          <span class="visually-hidden">Buscar amigos</span>
+          <span class="friend-search-input">
+            <%= render "shared/icon", name: :search, class: "icon-svg" %>
+            <input
+              type="search"
+              name="friend_search"
+              value="<%= @friend_search[:query] %>"
+              placeholder="Buscar @username ou nome"
+              autocomplete="off"
+              data-friend-search-input
+            >
+          </span>
+        </label>
+        <button type="submit" class="secondary-button full-width" data-friend-search-submit>Buscar</button>
+      <% end %>
+
+      <div class="friend-search-results" data-friend-search-results aria-live="polite">
+        <% if @friend_search[:has_search] %>
+          <% if @friend_search[:results].any? %>
+            <% @friend_search[:results].each do |result| %>
+              <% candidate = result[:user] %>
+              <% friendship = result[:friendship] %>
+              <article class="friend-search-result">
+                <a href="<%= profile_path(candidate) %>" class="friend-search-person">
+                  <% if result[:photo_url].present? %>
+                    <img class="friend-avatar friend-avatar-image" src="<%= result[:photo_url] %>" alt="Foto de <%= candidate.display_name %>">
+                  <% else %>
+                    <span class="friend-avatar"><%= result[:avatar] %></span>
+                  <% end %>
+                  <span class="friend-search-copy">
+                    <strong><%= candidate.display_name %></strong>
+                    <small>@<%= candidate.username %></small>
+                  </span>
+                </a>
+
+                <div class="friend-search-action">
+                  <% case friendship[:state] %>
+                  <% when "none" %>
+                    <%= button_to "Adicionar", friendships_path(user_id: candidate.id), method: :post, class: "mini-button" %>
+                  <% when "sent" %>
+                    <span class="status-pill">Pedido enviado</span>
+                    <%= button_to "Cancelar", friendship_path(friendship[:friendship]), method: :delete, class: "ghost-button" %>
+                  <% when "received" %>
+                    <%= button_to "Aceitar", accept_friendship_path(friendship[:friendship]), method: :post, class: "mini-button" %>
+                  <% else %>
+                    <span class="status-pill status-pill-live">Amigos</span>
+                    <%= button_to "Remover", friendship_path(friendship[:friendship]), method: :delete, class: "ghost-button" %>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          <% else %>
+            <p class="friend-search-state">Nenhuma pessoa encontrada com essa busca.</p>
+          <% end %>
+        <% else %>
+          <p class="friend-search-hint">Dica: compartilhe seu @<%= @profile[:username] %> com amigos.</p>
+        <% end %>
+      </div>
+
+      <%= button_to "Sair", logout_path, method: :post, class: "ghost-button full-width", form_class: "sidebar-logout" %>
+    </section>
+  </aside>
+
+  <main class="dashboard-main">
+    <section class="dashboard-panel hero-panel-main hero-panel-dashboard">
+      <div class="hero-copy">
+        <p class="eyebrow"><%= @greeting %></p>
+        <h1><%= @greeting %>, <%= @profile[:display_name] %>!</h1>
+        <p class="lead"><%= @hero_subtitle %></p>
+
+        <div class="hero-chips">
+          <span class="hero-chip"><%= @streak %> dias</span>
+          <span class="hero-chip"><%= @totals[:today_label] %> hoje</span>
+        </div>
+      </div>
+
+      <details class="friend-bell hero-friend-bell">
+        <summary aria-label="Notificacoes de amizade">
+          <%= render "shared/icon", name: :bell, class: "icon-svg" %>
+          <% if @friend_notifications[:count].positive? %>
+            <span><%= @friend_notifications[:count] %></span>
+          <% end %>
+        </summary>
+
+        <div class="friend-bell-menu">
+          <p class="eyebrow">Amizades</p>
+
+          <% if @friend_notifications[:pending_received].any? %>
+            <% @friend_notifications[:pending_received].each do |friendship| %>
+              <article class="friend-notification">
+                <div>
+                  <strong><%= friendship.requester.display_name %></strong>
+                  <small>enviou um pedido de amizade</small>
+                </div>
+                <%= button_to "Aceitar", accept_friendship_path(friendship), method: :post, class: "mini-button" %>
+              </article>
+            <% end %>
+          <% else %>
+            <p class="muted">Nenhum pedido pendente.</p>
+          <% end %>
+
+          <% @friend_notifications[:accepted_sent].each do |friendship| %>
+            <article class="friend-notification friend-notification-muted">
+              <div>
+                <strong><%= friendship.addressee.display_name %></strong>
+                <small>aceitou seu pedido de amizade</small>
+              </div>
+            </article>
+          <% end %>
+        </div>
+      </details>
+
+      <div class="hero-status">
+        <div class="streak-badge">
+          <span class="streak-icon">S</span>
+          <div>
+            <strong><%= @streak %> dias</strong>
+            <small>sequencia atual</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-panel heatmap-panel" id="ranking">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Sua atividade</p>
+          <h2>Contribuicoes no ultimo ano</h2>
+        </div>
+      </div>
+
+      <div class="heatmap-shell">
+        <div class="heatmap-scroll">
+          <div class="heatmap-calendar" style="--heatmap-weeks: <%= @heatmap[:weeks].size %>">
+            <div class="heatmap-months">
+              <span></span>
+              <% @heatmap[:months].each do |month| %>
+                <span><%= month[:label] %></span>
+              <% end %>
+            </div>
+
+            <div class="heatmap-body">
+              <div class="heatmap-rows">
+                <% @heatmap[:rows].each do |row| %>
+                  <span><%= row %></span>
+                <% end %>
+              </div>
+
+              <div class="heatmap-grid">
+                <% @heatmap[:weeks].each do |week| %>
+                  <div class="heatmap-week">
+                    <% week[:days].each do |day| %>
+                      <span
+                        class="heat-cell <%= "heat-cell-empty" if day[:is_empty] %> <%= "heat-level-#{day[:level]}" if day[:level].positive? %>"
+                        title="<%= day[:label] %>"
+                      ></span>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics-grid">
+      <% @metrics.each do |metric| %>
+        <article class="dashboard-panel metric-card metric-card-<%= metric[:tone] %>">
+          <div class="metric-icon">
+            <%= render "shared/icon", name: metric[:icon], class: "icon-svg" %>
+          </div>
+          <div class="metric-copy">
+            <strong><%= metric[:value] %></strong>
+            <span><%= metric[:label] %></span>
+            <small><%= metric[:subtext] %></small>
+          </div>
+        </article>
+      <% end %>
+    </section>
+
+    <section class="dashboard-split">
+      <article class="dashboard-panel activity-panel" id="anotacoes">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Atividade recente</p>
+            <h2>Seu diario e feed</h2>
+          </div>
+
+          <%= link_to "Ver perfil", profile_path(current_user), class: "mini-link" %>
+        </div>
+
+        <%= form_with scope: :daily_log, url: daily_logs_path, method: :post, class: "quick-note-form", local: true do |form| %>
+          <div class="quick-note-row">
+            <label>
+              <span>Data</span>
+              <%= form.date_field :log_date, value: (@today_log&.log_date || Time.zone.today).to_s %>
+            </label>
+
+            <label>
+              <span>Titulo</span>
+              <%= form.text_field :title, value: @today_log&.title, placeholder: "O que marcou seu dia?", required: true %>
+            </label>
+          </div>
+
+          <label>
+            <span>Conteudo</span>
+            <%= form.text_area :content, rows: 4, placeholder: "Escreva o que aprendeu hoje...", required: true %>
+          </label>
+
+          <%= form.submit "Salvar anotacao", class: "primary-button" %>
+        <% end %>
+
+        <div class="feed-list">
+          <% @recent_activity.each do |item| %>
+            <article class="feed-item">
+              <span class="feed-avatar feed-avatar-<%= item[:accent] %>"><%= item[:avatar] %></span>
+              <div class="feed-content">
+                <div class="feed-meta">
+                  <strong><%= item[:title] %></strong>
+                  <span><%= item[:when] %></span>
+                </div>
+                <p><%= item[:detail] %></p>
+              </div>
+            </article>
+          <% end %>
+        </div>
+      </article>
+
+      <article class="dashboard-panel subjects-panel" id="materias">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Materias</p>
+            <h2>Foco atual</h2>
+          </div>
+
+          <%= link_to "Ver todas", study_subjects_path, class: "mini-link" %>
+        </div>
+
+        <div class="subject-summary-actions">
+          <span><%= @study_subjects.count %> cadastrada<%= "s" unless @study_subjects.count == 1 %></span>
+          <%= link_to "Criar materia", "#{study_subjects_path}#criar", class: "secondary-button" %>
+        </div>
+
+        <div class="subject-list">
+          <% if @subjects.any? %>
+            <% @subjects.each do |subject| %>
+              <article class="subject-row">
+                <div class="subject-row-main">
+                  <div class="subject-row-head">
+                    <% if subject[:photo_url].present? %>
+                      <img class="subject-photo" src="<%= subject[:photo_url] %>" alt="Foto de <%= subject[:name] %>">
+                    <% else %>
+                      <span class="subject-icon subject-icon-<%= subject[:tone] %>">
+                        <%= render "shared/icon", name: subject[:icon], class: "icon-svg" %>
+                      </span>
+                    <% end %>
+
+                    <div class="subject-copy">
+                      <strong><%= subject[:name] %></strong>
+                      <p><%= subject[:hours_label] %></p>
+                      <small><%= subject[:goal_label] %></small>
+                    </div>
+                  </div>
+
+                  <div class="subject-progress">
+                    <span>Progresso <%= subject[:goal_progress] %>%</span>
+                    <div class="progress-track progress-track-small">
+                      <div class="progress-fill progress-fill-violet" style="width: <%= subject[:goal_progress] %>%"></div>
+                    </div>
+                  </div>
+
+                  <%= link_to "#{study_subjects_path}#materia-#{subject[:id]}", class: "icon-button icon-button-small", aria: { label: "Editar #{subject[:name]}" } do %>
+                    <%= render "shared/icon", name: :pencil, class: "icon-svg" %>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          <% else %>
+            <div class="empty-state">
+              <strong>Nenhuma materia cadastrada ainda.</strong>
+              <p>Abra a tela de materias para criar a primeira e liberar o timer.</p>
+            </div>
+          <% end %>
+        </div>
+      </article>
+    </section>
+
+    <section class="dashboard-panel circle-panel" id="amigos">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Ciclo social</p>
+          <h2>Ciclo de estudos</h2>
+          <p class="section-subtitle">Novidades, posts e sessoes recentes do seu ciclo.</p>
+        </div>
+
+        <details class="circle-compose">
+          <summary class="circle-compose-button" aria-label="Criar post no ciclo">
+            <span>+</span>
+            <strong>Novo post</strong>
+          </summary>
+          <%= form_with scope: :circle_post, url: circle_posts_path, method: :post, class: "circle-compose-form", local: true do |form| %>
+            <label>
+              <span>Titulo</span>
+              <%= form.text_field :title, maxlength: 80, placeholder: "Uma conquista, duvida ou foco...", required: true %>
+            </label>
+            <label>
+              <span>Texto</span>
+              <%= form.text_area :body, rows: 3, maxlength: 200, placeholder: "Compartilhe com seu ciclo em ate 200 caracteres.", required: true %>
+            </label>
+            <%= form.submit "Publicar", class: "primary-button full-width" %>
+          <% end %>
+        </details>
+      </div>
+
+      <div class="circle-layout">
+        <div class="circle-feed circle-timeline">
+          <% if @circle[:feed].any? %>
+            <% @circle[:feed].each do |item| %>
+              <% if item[:type] == "post" %>
+                <% post = item[:post] %>
+                <article class="circle-post circle-timeline-item">
+                  <div class="circle-timeline-marker">
+                    <span class="circle-avatar"><%= avatar_initial(post.user.display_name) %></span>
+                    <span class="circle-event-icon circle-event-icon-post"><%= render "shared/icon", name: :notes, class: "icon-svg" %></span>
+                  </div>
+
+                  <div class="circle-card-content">
+                    <div class="circle-card-head">
+                      <div>
+                        <span class="circle-kicker">Publicacao</span>
+                        <h3><%= post.user.display_name %> publicou: <%= post.title %></h3>
+                      </div>
+                      <time><%= time_ago_in_words(post.created_at) %> atras</time>
+                    </div>
+
+                    <p class="circle-body"><%= post.body %></p>
+
+                    <% if post.replies.any? %>
+                      <div class="circle-replies">
+                        <span class="circle-thread-label">Respostas recentes</span>
+                        <% post.replies.limit(3).each do |reply| %>
+                          <div class="circle-reply">
+                            <strong><%= reply.user.display_name %></strong>
+                            <span><%= reply.body %></span>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% end %>
+
+                    <%= form_with scope: :reply, url: circle_post_replies_path(post), method: :post, class: "circle-reply-form", local: true do |form| %>
+                      <%= form.text_field :body, maxlength: 200, placeholder: "Responder em ate 200 caracteres...", required: true %>
+                      <%= form.submit "Responder", class: "mini-button" %>
+                    <% end %>
+                  </div>
+                </article>
+              <% else %>
+                <% session_item = item[:session] %>
+                <article class="circle-post circle-session circle-timeline-item">
+                  <div class="circle-timeline-marker">
+                    <span class="circle-avatar"><%= avatar_initial(session_item.user.display_name) %></span>
+                    <span class="circle-event-icon circle-event-icon-session"><%= render "shared/icon", name: :clock, class: "icon-svg" %></span>
+                  </div>
+
+                  <div class="circle-card-content">
+                    <div class="circle-card-head">
+                      <div>
+                        <span class="circle-kicker">Sessao de estudo</span>
+                        <h3><%= session_item.user.display_name %> comecou a estudar <%= session_item.subject %></h3>
+                      </div>
+                      <time><%= time_ago_in_words(session_item.started_at) %> atras</time>
+                    </div>
+                    <p class="circle-body"><%= session_item.ended_at ? "Sessao finalizada: #{session_item.duration_label}" : "Sessao em andamento agora." %></p>
+                  </div>
+                </article>
+              <% end %>
+            <% end %>
+          <% else %>
+            <div class="empty-state circle-empty-state">
+              <strong>Seu ciclo ainda esta quieto.</strong>
+              <p>Publique uma novidade no botao acima ou adicione amigos pelos perfis para montar sua timeline de estudos.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="dashboard-rail">
+    <section class="dashboard-panel timer-panel" id="sessoes">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Cronometro</p>
+          <h2>Sessao atual</h2>
+        </div>
+
+        <% if @current_session %>
+          <span class="status-pill <%= "status-pill-live" unless @current_session.paused? %>"><%= @current_session.paused? ? "Pausado" : "Ao vivo" %></span>
+        <% else %>
+          <span class="status-pill">Idle</span>
+        <% end %>
+      </div>
+
+      <div
+        class="timer-widget"
+        data-study-timer
+        data-started-at="<%= @timer[:started_at] %>"
+        data-rendered-at="<%= @timer[:rendered_at] %>"
+        data-base-seconds="<%= @timer[:base_seconds] %>"
+        data-elapsed-seconds="<%= @timer[:elapsed_seconds] %>"
+        data-state="<%= @timer[:state] %>"
+      >
+        <div class="timer-subject">
+          <span class="timer-dot"></span>
+          <strong><%= @timer[:subject] %></strong>
+        </div>
+
+        <div class="timer-value" data-timer-value><%= @timer[:display] %></div>
+
+        <% if @current_session %>
+          <p class="muted">Iniciada em <%= @current_session.started_at.strftime("%d/%m/%Y %H:%M") %></p>
+          <div class="timer-actions">
+            <% if @current_session.paused? %>
+              <%= button_to "Retomar", resume_study_session_path(@current_session), method: :post, class: "secondary-button" %>
+            <% else %>
+              <%= button_to "Pausar", pause_study_session_path(@current_session), method: :post, class: "secondary-button" %>
+            <% end %>
+            <%= button_to "Finalizar sessao", stop_study_session_path(@current_session), method: :post, class: "primary-button" %>
+          </div>
+        <% else %>
+          <p class="muted">Nenhuma sessao em andamento agora.</p>
+          <% if @study_subjects.any? %>
+            <%= form_with scope: :study_session, url: study_sessions_path, method: :post, class: "quick-start-form", local: true do |form| %>
+              <label class="subject-combobox" data-subject-combobox>
+                <span>Materia</span>
+                <input
+                  type="text"
+                  name="study_session[study_subject_name]"
+                  value="<%= params.dig(:study_session, :study_subject_name) %>"
+                  placeholder="Digite para buscar..."
+                  autocomplete="off"
+                  required
+                  data-subject-search
+                >
+                <input type="hidden" name="study_session[study_subject_id]" value="<%= params.dig(:study_session, :study_subject_id) %>" data-subject-id>
+                <div class="subject-options" data-subject-options>
+                  <% @study_subjects.each do |subject| %>
+                    <button
+                      type="button"
+                      class="subject-option"
+                      data-subject-option
+                      data-subject-id="<%= subject.id %>"
+                      data-subject-name="<%= subject.name %>"
+                    >
+                      <%= subject.name %>
+                    </button>
+                  <% end %>
+                </div>
+              </label>
+
+              <label>
+                <span>Notas rapidas</span>
+                <%= form.text_area :notes, rows: 3, placeholder: "Objetivo da sessao" %>
+              </label>
+
+              <%= form.submit "Comecar agora", class: "primary-button full-width" %>
+            <% end %>
+          <% else %>
+            <div class="empty-state">
+              <strong>Crie uma materia primeiro.</strong>
+              <p>Depois ela aparece aqui para iniciar o timer com autocomplete.</p>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="dashboard-panel group-session-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Grupos de estudo</p>
+          <h2>Estude junto</h2>
+        </div>
+        <%= link_to "Ver todos", study_groups_path, class: "mini-link" %>
+      </div>
+
+      <% if @study_groups[:active_participation] %>
+        <% active = @study_groups[:active_participation] %>
+        <article class="group-active-mini">
+          <span class="status-pill status-pill-live">Ao vivo</span>
+          <strong>Voce esta estudando <%= active.study_subject.name %></strong>
+          <p><%= active.study_focus_room.name %> · <%= active.study_focus_room.study_group.name %></p>
+          <%= link_to "Abrir sala", study_group_path(active.study_focus_room.study_group, room: active.study_focus_room.id), class: "secondary-button full-width" %>
+        </article>
+      <% elsif @study_groups[:groups].any? %>
+        <div class="dashboard-group-list">
+          <% @study_groups[:groups].each do |group_summary| %>
+            <% group = group_summary[:model] %>
+            <%= link_to study_group_path(group), class: "dashboard-group-item" do %>
+              <span class="study-group-mark"><%= avatar_initial(group.name) %></span>
+              <span>
+                <strong><%= group.name %></strong>
+                <small><%= group_summary[:active_count] %> estudando agora · <%= format_seconds_as_hours(group_summary[:seconds_today]) %> hoje</small>
+              </span>
+            <% end %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="empty-state">
+          <strong>Voce ainda nao participa de nenhum grupo.</strong>
+          <p>Entre em uma comunidade com pessoas que tem o mesmo objetivo.</p>
+        </div>
+      <% end %>
+
+      <div class="group-session-actions">
+        <%= link_to "Explorar grupos", study_groups_path, class: "primary-button full-width" %>
+        <%= link_to "Criar grupo", new_study_group_path, class: "secondary-button full-width" %>
+      </div>
+    </section>
+
+    <section class="dashboard-panel goal-panel" id="metas">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow"><%= @goal[:title] %></p>
+          <h2>Foco de hoje</h2>
+        </div>
+
+        <%= link_to "Editar metas", study_subjects_path, class: "mini-link" %>
+      </div>
+
+      <% if @goal[:has_goal] %>
+        <div class="goal-grid">
+          <div class="goal-ring" style="--progress: <%= @goal[:progress] %>%">
+            <div class="goal-ring-inner">
+              <strong><%= @goal[:done_label] %></strong>
+              <span>de <%= @goal[:target_label] %></span>
+            </div>
+          </div>
+
+          <div class="goal-copy">
+            <strong>Faltam <%= @goal[:remaining_label] %></strong>
+            <p>Soma das metas semanais de <%= @goal[:subjects_count] %> materia<%= "s" unless @goal[:subjects_count] == 1 %>.</p>
+            <div class="goal-bars" aria-hidden="true">
+              <% @goal[:bars].each do |bar| %>
+                <span style="height: <%= bar * 2 %>px"></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <div class="empty-state">
+          <strong>Nenhuma meta semanal definida.</strong>
+          <p>Cadastre uma meta nas materias para acompanhar o foco da semana.</p>
+          <%= link_to "Editar materias", study_subjects_path, class: "secondary-button" %>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="dashboard-panel achievements-panel" id="conquistas">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Conquistas</p>
+          <h2>Recentes</h2>
+        </div>
+      </div>
+
+      <div class="achievement-list">
+        <% @achievements.each do |achievement| %>
+          <article class="achievement-item">
+            <span class="achievement-icon achievement-icon-<%= achievement[:tone] %>">
+              <%= render "shared/icon", name: achievement[:icon], class: "icon-svg" %>
+            </span>
+            <div class="achievement-copy">
+              <strong><%= achievement[:title] %></strong>
+              <p><%= achievement[:detail] %></p>
+            </div>
+            <span class="achievement-time"><%= achievement[:when] %></span>
+          </article>
+        <% end %>
+      </div>
+    </section>
+  </aside>
+</div>

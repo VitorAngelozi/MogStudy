@@ -1,0 +1,27 @@
+<% content_for :title, "Entrar - MogStudy" %>
+
+<section class="auth-shell">
+  <div class="auth-card">
+    <p class="eyebrow">Acesso</p>
+    <h1>Entrar no MogStudy</h1>
+
+    <%= form_with scope: :auth, url: login_path, method: :post, class: "form-stack" do |form| %>
+      <label>
+        <span>E-mail</span>
+        <%= form.email_field :email, value: @email, placeholder: "voce@exemplo.com", required: true %>
+      </label>
+
+      <label>
+        <span>Senha</span>
+        <%= form.password_field :password, placeholder: "Sua senha", required: true %>
+      </label>
+
+      <%= form.submit "Entrar", class: "primary-button full-width" %>
+    <% end %>
+
+    <p class="auth-note">
+      Ainda não tem conta?
+      <%= link_to "Criar uma conta", register_path %>
+    </p>
+  </div>
+</section>

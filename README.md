@@ -1,29 +1,24 @@
-# MogStudy
+# README
 
-MogStudy is a Laravel app for tracking study sessions, daily logs, and a public profile README inspired by GitHub.
+This README would normally document whatever steps are necessary to get the
+application up and running.
 
-## Features
+Things you may want to cover:
 
-- Account creation and login
-- Study timer sessions
-- Daily study logs with a GitHub-like feed
-- Public profile pages by username
-- Markdown README editor and renderer
+* Ruby version
 
-## Stack
+* System dependencies
 
-- Laravel 13
-- PHP 8.3
-- Vite
-- Custom CSS and lightweight JavaScript
+* Configuration
 
-## Local Development
+* Database creation
 
-1. Install dependencies with Composer and npm.
-2. Configure your `.env`.
-3. Run migrations and seeders.
-4. Start the Laravel and Vite development servers.
+* Database initialization
 
-## Demo Accounts
+* How to run the test suite
 
-After seeding, the project includes a few sample users with study history to showcase the UI.
+* Services (job queues, cache servers, search engines, etc.)
+
+* Deployment instructions
+
+* ...
