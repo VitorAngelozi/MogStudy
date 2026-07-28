@@ -41,6 +41,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "Viewer", response.body
     assert_match "Mathematics", response.body
+    assert_match %r{/assets/branding/mogstudy_cat_main-[a-f0-9]+\.png}, response.body
 
     get friend_search_path, params: { friend_search: "friend" }
 
@@ -70,5 +71,57 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match "Sem conquistas ainda.", response.body
     refute_match "Maria completou", response.body
     refute_match "Lucas criou", response.body
+  end
+
+  test "dashboard shows first study badge after the first completed session" do
+    user = User.create!(
+      username: "firststudyuser",
+      display_name: "First Study User",
+      email: "firststudy@example.com",
+      password: "password123",
+      password_confirmation: "password123"
+    )
+    subject = user.study_subjects.create!(name: "Physics")
+
+    user.study_sessions.create!(
+      subject: subject.name,
+      study_subject: subject,
+      started_at: 2.days.ago,
+      ended_at: 2.days.ago + 45.minutes,
+      duration_seconds: 2700
+    )
+
+    sign_in_as(user)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_match %r{/assets/badges/badge_firstStudy-[a-f0-9]+\.png}, response.body
+    assert_match "Primeiro estudo registrado", response.body
+  end
+
+  test "dashboard does not show first study badge for an open session" do
+    user = User.create!(
+      username: "openstudyuser",
+      display_name: "Open Study User",
+      email: "openstudy@example.com",
+      password: "password123",
+      password_confirmation: "password123"
+    )
+    subject = user.study_subjects.create!(name: "Chemistry")
+
+    user.study_sessions.create!(
+      subject: subject.name,
+      study_subject: subject,
+      started_at: Time.current,
+      duration_seconds: 0
+    )
+
+    sign_in_as(user)
+
+    get dashboard_path
+
+    assert_response :success
+    refute_match %r{/assets/badges/badge_firstStudy-[a-f0-9]+\.png}, response.body
   end
 end

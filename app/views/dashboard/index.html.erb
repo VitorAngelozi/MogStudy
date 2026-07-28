@@ -4,7 +4,9 @@
   <aside class="dashboard-sidebar">
     <section class="sidebar-panel brand-panel">
       <%= link_to dashboard_path, class: "brand brand-large" do %>
-        <span class="brand-mark brand-mark-lg">M</span>
+        <span class="brand-mark brand-mark-lg">
+          <%= image_tag "branding/mogstudy_cat_main.png", alt: "", aria: { hidden: true } %>
+        </span>
         <span>
           <strong>MogStudy</strong>
           <small>GitHub de estudos</small>
@@ -635,8 +637,12 @@
         <% if @achievements.any? %>
           <% @achievements.each do |achievement| %>
             <article class="achievement-item">
-              <span class="achievement-icon achievement-icon-<%= achievement[:tone] %>">
-                <%= render "shared/icon", name: achievement[:icon], class: "icon-svg" %>
+              <span class="achievement-icon achievement-icon-<%= achievement[:tone] %> <%= "achievement-icon-media" if achievement[:image].present? %>">
+                <% if achievement[:image].present? %>
+                  <%= image_tag achievement[:image], alt: "", aria: { hidden: true }, class: "achievement-icon-image" %>
+                <% else %>
+                  <%= render "shared/icon", name: achievement[:icon], class: "icon-svg" %>
+                <% end %>
               </span>
               <div class="achievement-copy">
                 <strong><%= achievement[:title] %></strong>

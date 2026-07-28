@@ -32,7 +32,9 @@
       <header class="topbar">
         <div class="container topbar-inner">
           <%= link_to root_path, class: "brand" do %>
-            <span class="brand-mark">M</span>
+            <span class="brand-mark">
+              <%= image_tag "branding/mogstudy_cat_main.png", alt: "", aria: { hidden: true } %>
+            </span>
             <span>
               <strong>MogStudy</strong>
               <small>GitHub de estudos</small>

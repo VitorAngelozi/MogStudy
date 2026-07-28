@@ -196,6 +196,14 @@ button {
     background: linear-gradient(135deg, var(--violet), #a97bff);
     box-shadow: 0 12px 30px rgba(129, 89, 255, 0.28);
     flex: 0 0 auto;
+    overflow: hidden;
+}
+
+.brand-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .brand-mark-lg {
@@ -2679,6 +2687,18 @@ textarea {
     place-items: center;
     color: white;
     flex: 0 0 auto;
+    overflow: hidden;
+}
+
+.achievement-icon-media {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(129, 89, 255, 0.12));
+}
+
+.achievement-icon-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .achievement-icon-fire {

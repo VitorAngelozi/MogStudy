@@ -13,6 +13,7 @@ class DashboardController < AuthenticatedController
       seconds_today: user.study_sessions.where.not(ended_at: nil).where(started_at: today.all_day).sum(:duration_seconds).to_i,
       seconds_total: user.study_sessions.where.not(ended_at: nil).sum(:duration_seconds).to_i,
       sessions_total: user.study_sessions.count,
+      completed_sessions_total: user.study_sessions.where.not(ended_at: nil).count,
       logs_total: user.daily_logs.count
     }
 
@@ -118,7 +119,7 @@ class DashboardController < AuthenticatedController
   def build_metrics(totals, subjects_total, goal)
     [
       { label: "Horas estudadas", value: format_seconds_as_hours(totals[:seconds_total]), icon: "clock", tone: "violet", subtext: "tempo acumulado" },
-      { label: "Sessoes", value: totals[:sessions_total], icon: "calendar", tone: "emerald", subtext: "registros fechados" },
+      { label: "Sessoes", value: totals[:completed_sessions_total], icon: "calendar", tone: "emerald", subtext: "registros fechados" },
       { label: "Materias", value: subjects_total, icon: "book", tone: "cyan", subtext: "areas em foco" },
       { label: "Meta semanal", value: goal[:has_goal] ? "#{goal[:progress]}%" : "0%", icon: "trophy", tone: "amber", subtext: "ritmo consistente" }
     ]
@@ -308,6 +309,14 @@ class DashboardController < AuthenticatedController
     achievements = []
 
     achievements << {
+      image: "badges/badge_firstStudy.png",
+      title: "Primeiro estudo registrado",
+      detail: "Seu primeiro registro de estudo entrou no historico.",
+      when: "agora",
+      tone: "gold"
+    } if totals[:completed_sessions_total].positive?
+
+    achievements << {
       icon: "clock",
       title: "#{format_seconds_as_hours(totals[:seconds_total])} estudadas",
       detail: "Tempo total acumulado nos registros concluídos.",
@@ -331,17 +340,17 @@ class DashboardController < AuthenticatedController
         when: "agora",
         tone: "amber"
       }
-    elsif totals[:sessions_total].positive?
+    elsif totals[:completed_sessions_total].positive?
       achievements << {
         icon: "calendar",
-        title: "#{totals[:sessions_total]} sessoes fechadas",
+        title: "#{totals[:completed_sessions_total]} sessoes fechadas",
         detail: "Historico real de sessoes concluidas.",
         when: "agora",
         tone: "emerald"
       }
     end
 
-    achievements.first(3)
+    achievements.first(4)
   end
 
   def greeting_for_hour(hour)
