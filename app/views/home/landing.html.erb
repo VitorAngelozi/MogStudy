@@ -1,52 +1,64 @@
 <% content_for :title, "MogStudy" %>
 
-<section class="hero">
-  <div class="hero-copy">
-    <p class="eyebrow">MogStudy</p>
-    <h1>Seu GitHub de estudos, com timer, diario e perfil proprio.</h1>
-    <p class="lead">
-      Cronometre sessões, registre o que estudou hoje e mantenha um perfil público
-      com foto, título e bio.
-    </p>
+<main class="home-landing">
+  <section class="home-board">
+    <section class="home-hero">
+      <div class="home-hero-copy">
+        <p class="eyebrow">MOGSTUDY</p>
+        <h1>
+          <span>Um lugar</span>
+          <span>para</span>
+          <span>estudar,</span>
+          <span>evoluir e</span>
+          <span>encontrar</span>
+          <span>companhia.</span>
+        </h1>
+        <p class="lead">
+          Registre suas sessoes, acompanhe seu progresso e faca parte de uma comunidade
+          que estuda junto.
+        </p>
 
-    <div class="hero-actions">
-      <%= link_to "Criar conta", register_path, class: "primary-button" %>
-      <%= link_to "Entrar", login_path, class: "secondary-button" %>
-    </div>
-  </div>
+        <div class="hero-actions">
+          <%= link_to "Criar conta", register_path, class: "primary-button" %>
+          <%= link_to "Entrar", login_path, class: "secondary-button" %>
+        </div>
+      </div>
 
-  <aside class="hero-panel">
-    <div class="mini-stat">
-      <span>Timer</span>
-      <strong>00:45:12</strong>
-    </div>
-    <div class="mini-stat">
-      <span>Registro do dia</span>
-      <strong>Disponivel no feed</strong>
-    </div>
-    <div class="mini-stat">
-      <span>Perfil</span>
-      <strong>Foto, titulo e bio</strong>
-    </div>
-  </aside>
-</section>
+      <div class="home-hero-visual">
+        <div class="home-hero-frame">
+          <%= image_tag "home/home_mog.png", alt: "Ilustracao da pagina inicial do MogStudy", class: "home-hero-image" %>
+        </div>
+        <p class="home-hero-caption">Uma atmosfera leve para acompanhar sua rotina de estudos.</p>
+      </div>
+    </section>
 
-<section class="feature-grid">
-  <article class="feature-card">
-    <p class="eyebrow">Cronometro</p>
-    <h2>Registre sessoes reais.</h2>
-    <p>Inicie e pare seus blocos de estudo e salve o tempo em minutos no historico.</p>
-  </article>
+    <section class="home-feature-grid" aria-label="Recursos do MogStudy">
+      <article class="home-feature-card">
+        <span class="home-feature-icon home-feature-icon-lavender">
+          <%= render "shared/icon", name: :clock, class: "icon-svg" %>
+        </span>
+        <p class="eyebrow">Cronometre sessoes</p>
+        <h2>Registre horas reais de foco.</h2>
+        <p>Inicie e pare seus blocos de estudo e acompanhe o tempo no historico.</p>
+      </article>
 
-  <article class="feature-card">
-    <p class="eyebrow">Feed diario</p>
-    <h2>Um dia, uma entrada.</h2>
-    <p>Os registros aparecem como contribuicoes, deixando clara a consistencia da rotina.</p>
-  </article>
+      <article class="home-feature-card">
+        <span class="home-feature-icon home-feature-icon-sage">
+          <%= render "shared/icon", name: :calendar, class: "icon-svg" %>
+        </span>
+        <p class="eyebrow">Feed diario</p>
+        <h2>Um dia, uma entrada.</h2>
+        <p>Os registros aparecem como contribuicoes, deixando clara a constancia da rotina.</p>
+      </article>
 
-  <article class="feature-card">
-    <p class="eyebrow">Perfil</p>
-    <h2>Uma identidade simples.</h2>
-    <p>Mostre uma foto, um titulo curto e uma bio para sua jornada de estudo.</p>
-  </article>
-</section>
+      <article class="home-feature-card">
+        <span class="home-feature-icon home-feature-icon-blush">
+          <%= render "shared/icon", name: :users, class: "icon-svg" %>
+        </span>
+        <p class="eyebrow">Perfil simples</p>
+        <h2>Uma identidade leve.</h2>
+        <p>Mostre uma foto, um titulo curto e uma bio para sua jornada de estudo.</p>
+      </article>
+    </section>
+  </section>
+</main>

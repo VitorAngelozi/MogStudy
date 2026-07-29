@@ -15,7 +15,7 @@
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "application", defer: true %>
   </head>
-  <body class="app-shell <%= %w[dashboard profiles].include?(controller_name) ? "app-immersive" : "" %>">
+  <body class="app-shell <%= %w[dashboard profiles].include?(controller_name) ? "app-immersive" : "" %> <%= action_name == "landing" ? "home-page" : "" %>">
     <div class="orb orb-one"></div>
     <div class="orb orb-two"></div>
 
