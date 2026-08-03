@@ -1,0 +1,36 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV["DB_HOST"] %>
+  port: <%= ENV["DB_PORT"] %>
+  username: <%= ENV["DB_USERNAME"] %>
+  password: <%= ENV["DB_PASSWORD"] %>
+
+development:
+  <<: *default
+  database: mogstudy_development
+
+test:
+  <<: *default
+  database: mogstudy_test
+
+production:
+  primary:
+    <<: *default
+    database: mogstudy_production
+
+  cache:
+    <<: *default
+    database: mogstudy_production_cache
+    migrations_paths: db/cache_migrate
+
+  queue:
+    <<: *default
+    database: mogstudy_production_queue
+    migrations_paths: db/queue_migrate
+
+  cable:
+    <<: *default
+    database: mogstudy_production_cable
+    migrations_paths: db/cable_migrate

@@ -1,0 +1,102 @@
+<% content_for :title, "#{@profile_user.profile_title} - MogStudy" %>
+
+<% can_edit_profile = authenticated? && current_user.id == @profile_user.id %>
+<% profile_photo_url = @profile_user.profile_photo_url %>
+<% profile_initial = avatar_initial(@profile_user.display_name) %>
+
+<div class="profile-page">
+  <section class="hero hero-profile">
+    <div class="profile-hero-main">
+      <% if profile_photo_url.present? %>
+        <img class="profile-hero-avatar profile-hero-avatar-image" src="<%= profile_photo_url %>" alt="Foto de <%= @profile_user.profile_title %>">
+      <% else %>
+        <div class="profile-hero-avatar"><%= profile_initial %></div>
+      <% end %>
+
+      <div class="hero-copy">
+        <p class="eyebrow">Perfil publico</p>
+        <h1><%= @profile_user.profile_title %></h1>
+        <p class="profile-username">@<%= @profile_user.username %></p>
+        <p class="lead"><%= @profile_user.bio.presence || "Esse usuario ainda nao adicionou uma bio." %></p>
+
+        <% if @friendship_state.present? %>
+          <div class="profile-friend-actions">
+            <% case @friendship_state[:state] %>
+            <% when "none" %>
+              <%= button_to "Adicionar amigo", friendships_path(user_id: @profile_user.id), method: :post, class: "primary-button" %>
+            <% when "sent" %>
+              <span class="status-pill">Pedido enviado</span>
+              <%= button_to "Cancelar", friendship_path(@friendship_state[:friendship]), method: :delete, class: "ghost-button" %>
+            <% when "received" %>
+              <%= button_to "Aceitar pedido", accept_friendship_path(@friendship_state[:friendship]), method: :post, class: "primary-button" %>
+            <% else %>
+              <span class="status-pill status-pill-live">Amigos</span>
+              <%= button_to "Remover", friendship_path(@friendship_state[:friendship]), method: :delete, class: "ghost-button" %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <aside class="hero-panel profile-stats-panel">
+      <div class="mini-stat">
+        <span>Streak</span>
+        <strong><%= @streak %> dia<%= "s" unless @streak == 1 %></strong>
+      </div>
+      <div class="mini-stat">
+        <span>Sessoes</span>
+        <strong><%= @sessions_count %> cadastrada<%= "s" unless @sessions_count == 1 %></strong>
+      </div>
+      <div class="mini-stat">
+        <span>Feed</span>
+        <strong><%= @logs_count %> registro<%= "s" unless @logs_count == 1 %></strong>
+      </div>
+    </aside>
+  </section>
+
+  <% if can_edit_profile %>
+    <section class="panel profile-editor-panel" id="editar">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Editar perfil</p>
+          <h2>Foto, titulo e bio</h2>
+        </div>
+      </div>
+
+      <%= form_with scope: :profile, url: update_profile_path, method: :put, multipart: true, class: "profile-edit-form", local: true do |form| %>
+        <label class="profile-photo-upload">
+          <%= form.file_field :photo, accept: "image/jpeg,image/png,image/webp" %>
+          <% if profile_photo_url.present? %>
+            <span class="profile-photo-tile" style="background-image: url('<%= profile_photo_url %>')">
+              <span class="subject-upload-overlay">Trocar</span>
+            </span>
+          <% else %>
+            <span class="profile-photo-tile profile-photo-tile-empty">
+              <span><%= profile_initial %></span>
+            </span>
+          <% end %>
+          <span class="profile-photo-upload-copy">
+            <strong>Foto do perfil</strong>
+            <small>JPG, PNG ou WEBP ate 2 MB.</small>
+          </span>
+        </label>
+
+        <div class="profile-edit-fields">
+          <label>
+            <span>Titulo</span>
+            <%= form.text_field :profile_title, value: @profile_user.profile_title, maxlength: 50, placeholder: "Ex: dev", data: { character_counter: "profile-title-counter" } %>
+            <small class="muted character-counter" id="profile-title-counter">0/50 caracteres</small>
+          </label>
+
+          <label>
+            <span>Bio</span>
+            <%= form.text_area :bio, value: @profile_user.bio, rows: 4, maxlength: 500, placeholder: "Conte um pouco sobre voce...", data: { character_counter: "profile-bio-counter" } %>
+            <small class="muted character-counter" id="profile-bio-counter">0/500 caracteres</small>
+          </label>
+
+          <%= form.submit "Salvar perfil", class: "primary-button" %>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
+</div>

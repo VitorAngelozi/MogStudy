@@ -1,0 +1,159 @@
+<% content_for :title, "Grupos de estudo - MogStudy" %>
+
+<div class="container study-groups-page">
+  <section class="hero subjects-hero study-groups-hero">
+    <div>
+      <p class="eyebrow">Grupos de estudo</p>
+      <h1>Estude com pessoas que querem chegar no mesmo lugar.</h1>
+      <p class="lead">Entre em comunidades permanentes, escolha uma sala de foco e marque presença com suas próprias matérias.</p>
+    </div>
+
+    <div class="subjects-hero-actions">
+      <%= link_to "Voltar ao dashboard", dashboard_path, class: "secondary-button" %>
+      <%= link_to "Criar grupo", new_study_group_path, class: "primary-button" %>
+    </div>
+  </section>
+
+  <% if @active_participation.present? %>
+    <section class="panel group-active-banner">
+      <div>
+        <p class="eyebrow">Estudando agora</p>
+        <h2>Voce esta estudando <%= @active_participation.study_subject.name %> em <%= @active_participation.study_focus_room.name %></h2>
+        <p><%= @active_participation.study_focus_room.study_group.name %> · desde <%= @active_participation.started_at.strftime("%H:%M") %></p>
+      </div>
+      <%= link_to "Abrir sala", study_group_path(@active_participation.study_focus_room.study_group, room: @active_participation.study_focus_room.id), class: "primary-button" %>
+    </section>
+  <% end %>
+
+  <section class="study-group-workspace">
+    <article class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Meus grupos</p>
+          <h2>Comunidades que voce participa</h2>
+        </div>
+      </div>
+
+      <div class="study-group-grid">
+        <% if @groups.any? %>
+          <% @groups.each do |group| %>
+            <%= link_to study_group_path(group), class: "study-group-card" do %>
+              <span class="study-group-mark"><%= avatar_initial(group.name) %></span>
+              <span>
+                <strong><%= group.name %></strong>
+                <small><%= group.members.count %> membros · <%= group.focus_rooms.count %> salas · <%= group.visibility_label %></small>
+              </span>
+              <span class="study-room-code"><%= group.code %></span>
+            <% end %>
+          <% end %>
+        <% else %>
+          <div class="empty-state">
+            <strong>Voce ainda nao participa de nenhum grupo.</strong>
+            <p>Crie um grupo para sua turma ou explore grupos publicos abaixo.</p>
+          </div>
+        <% end %>
+      </div>
+    </article>
+
+    <aside class="study-group-side">
+      <article class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Buscar grupos</p>
+            <h2>Nome ou codigo</h2>
+          </div>
+        </div>
+
+        <%= form_with url: study_groups_path, method: :get, class: "study-room-form", local: true do |form| %>
+          <label>
+            <span>Busca</span>
+            <%= form.text_field :group_search, value: @search, maxlength: 120, placeholder: "Ex: UFMS ou ABC12345" %>
+          </label>
+          <%= form.submit "Pesquisar", class: "primary-button full-width" %>
+        <% end %>
+      </article>
+
+      <% if @search.present? %>
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Resultados</p>
+              <h2>Grupos encontrados</h2>
+            </div>
+          </div>
+
+          <div class="study-group-mini-list">
+            <% if @search_results.any? %>
+              <% @search_results.each do |group| %>
+                <article class="study-group-mini">
+                  <strong><%= group.name %></strong>
+                  <small><%= group.code %> · <%= group.visibility_label %> · <%= group.members.count %> membros</small>
+
+                  <% if group.members.exists?(user_id: current_user.id) %>
+                    <%= link_to "Abrir grupo", study_group_path(group), class: "secondary-button full-width" %>
+                  <% elsif group.visibility == StudyGroup::VISIBILITY_PASSWORD %>
+                    <%= form_with url: join_by_code_study_groups_path, method: :post, class: "study-room-form compact-password-form", local: true do |form| %>
+                      <%= hidden_field_tag :code, group.code %>
+                      <label>
+                        <span>Senha</span>
+                        <%= password_field_tag :password, nil, required: true %>
+                      </label>
+                      <%= form.submit "Entrar", class: "primary-button full-width" %>
+                    <% end %>
+                  <% else %>
+                    <%= button_to "Entrar", join_study_group_path(group), method: :post, class: "primary-button full-width" %>
+                  <% end %>
+                </article>
+              <% end %>
+            <% else %>
+              <p class="muted">Nenhum grupo encontrado com essa busca.</p>
+            <% end %>
+          </div>
+        </article>
+      <% end %>
+
+      <article class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Entrar por codigo</p>
+            <h2>Recebeu um convite?</h2>
+          </div>
+        </div>
+
+        <%= form_with url: join_by_code_study_groups_path, method: :post, class: "study-room-form", local: true do |form| %>
+          <label>
+            <span>Codigo do grupo</span>
+            <%= text_field_tag :code, @join_code, maxlength: 12, placeholder: "Ex: A1B2C3D4", required: true %>
+          </label>
+          <label>
+            <span>Senha, se houver</span>
+            <%= password_field_tag :password, nil, maxlength: 40, placeholder: "Somente para grupos privados" %>
+          </label>
+          <%= form.submit "Entrar no grupo", class: "primary-button full-width" %>
+        <% end %>
+      </article>
+
+      <article class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Publicos</p>
+            <h2>Explorar grupos</h2>
+          </div>
+        </div>
+
+        <div class="study-group-mini-list">
+          <% if @public_groups.any? %>
+            <% @public_groups.each do |group| %>
+              <%= link_to study_group_path(group), class: "study-group-mini" do %>
+                <strong><%= group.name %></strong>
+                <small><%= group.members.count %> membros · <%= group.focus_rooms.count %> salas</small>
+              <% end %>
+            <% end %>
+          <% else %>
+            <p class="muted">Nenhum grupo publico disponivel agora.</p>
+          <% end %>
+        </div>
+      </article>
+    </aside>
+  </section>
+</div>

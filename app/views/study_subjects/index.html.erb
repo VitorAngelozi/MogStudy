@@ -1,0 +1,193 @@
+<% content_for :title, "Matérias - MogStudy" %>
+
+<main class="page subjects-page">
+  <section class="container subjects-hero">
+    <div>
+      <p class="eyebrow">Materias</p>
+      <h1>Organize seus focos de estudo</h1>
+      <p class="lead">Crie materias, ajuste metas e deixe o timer sempre pronto para o proximo bloco.</p>
+    </div>
+
+    <div class="subjects-hero-actions">
+      <%= link_to "Voltar ao dashboard", dashboard_path, class: "ghost-button" %>
+      <%= link_to "Criar materia", "#criar", class: "primary-button" %>
+    </div>
+  </section>
+
+  <section class="container subjects-workspace">
+    <details class="dashboard-panel subject-editor-card subject-create-card" id="criar" open>
+      <summary>
+        <span>
+          <small class="eyebrow">Nova materia</small>
+          <strong>Criar uma area de foco</strong>
+        </span>
+        <span class="mini-button">Abrir card</span>
+      </summary>
+
+      <%= form_with scope: :study_subject, url: study_subjects_path, method: :post, multipart: true, class: "subject-editor-form", local: true do |form| %>
+        <%= form.hidden_field :return_to, value: "subjects" %>
+
+        <div class="subject-expanded-head">
+          <label class="subject-photo-upload">
+            <%= form.file_field :photo, accept: "image/jpeg,image/png,image/webp" %>
+            <span class="subject-photo-tile subject-photo-tile-empty">
+              <%= render "shared/icon", name: :upload, class: "icon-svg" %>
+            </span>
+            <span class="subject-photo-upload-copy">
+              <strong>Foto da materia</strong>
+              <small>JPG, PNG ou WEBP ate 2 MB.</small>
+            </span>
+          </label>
+
+          <div>
+            <p class="eyebrow">Novo foco</p>
+            <h2>Criar materia</h2>
+            <p class="muted">Escolha uma imagem, defina uma meta e deixe tudo pronto para o timer.</p>
+          </div>
+        </div>
+
+        <div class="subject-editor-grid">
+          <label>
+            <span>Nome</span>
+            <%= form.text_field :name, maxlength: 50, placeholder: "Ex: Laravel", required: true %>
+          </label>
+
+          <label>
+            <span>Descricao</span>
+            <%= form.text_field :description, maxlength: 240, placeholder: "Opcional, ate 240 caracteres" %>
+          </label>
+        </div>
+
+        <div class="subject-goal-fields">
+          <label>
+            <span>Meta semanal</span>
+            <%= form.number_field :goal_value, min: 0, step: 0.25, placeholder: "Ex: 2" %>
+          </label>
+
+          <label>
+            <span>Unidade</span>
+            <%= form.select :goal_unit, [["Horas", "hours"], ["Minutos", "minutes"]], selected: "hours" %>
+          </label>
+        </div>
+
+        <%= form.submit "Criar materia", class: "primary-button full-width" %>
+      <% end %>
+    </details>
+
+    <div class="subjects-page-heading">
+      <div>
+        <p class="eyebrow">Biblioteca</p>
+        <h2><%= @subjects.count %> materia<%= "s" unless @subjects.count == 1 %> cadastrada<%= "s" unless @subjects.count == 1 %></h2>
+      </div>
+    </div>
+
+    <div class="subject-card-grid">
+      <% if @subjects.any? %>
+        <% @subjects.each do |subject| %>
+          <details class="dashboard-panel subject-editor-card subject-editor-maximized" id="materia-<%= subject[:id] %>">
+            <summary class="subject-card-summary" aria-label="Editar <%= subject[:name] %>">
+              <span class="subject-card-summary-content">
+                <span class="subject-card-main">
+                  <% if subject[:photo_url].present? %>
+                    <img class="subject-card-photo" src="<%= subject[:photo_url] %>" alt="Foto de <%= subject[:name] %>">
+                  <% else %>
+                    <span class="subject-card-icon subject-icon-<%= subject[:tone] %>">
+                      <%= render "shared/icon", name: subject[:icon], class: "icon-svg" %>
+                    </span>
+                  <% end %>
+
+                  <span class="subject-card-copy">
+                    <span class="eyebrow">Materia</span>
+                    <strong><%= subject[:name] %></strong>
+                    <span><%= subject[:description].presence || "Sem descricao ainda." %></span>
+                  </span>
+
+                  <span class="subject-card-stat">
+                    <strong><%= subject[:goal_progress] %>%</strong>
+                    <span><%= subject[:hours_label] %></span>
+                  </span>
+
+                  <%= button_to study_subject_path(subject[:id]), method: :delete, class: "icon-button icon-button-danger", data: { subject_delete: true }, form_class: "inline-form" do %>
+                    <%= render "shared/icon", name: :trash, class: "icon-svg" %>
+                  <% end %>
+
+                  <span class="icon-button" aria-hidden="true">
+                    <%= render "shared/icon", name: :pencil, class: "icon-svg" %>
+                  </span>
+                </span>
+
+                <span class="subject-card-progress">
+                  <span class="progress-track">
+                    <span class="progress-fill progress-fill-violet" style="width: <%= subject[:goal_progress] %>%"></span>
+                  </span>
+                  <span><%= subject[:goal_label] %></span>
+                </span>
+              </span>
+            </summary>
+
+            <%= form_with scope: :study_subject, url: study_subject_path(subject[:id]), method: :patch, multipart: true, class: "subject-editor-form", local: true do |form| %>
+              <%= form.hidden_field :return_to, value: "subjects" %>
+              <%= form.hidden_field :editing_subject_id, value: subject[:id] %>
+
+              <div class="subject-expanded-head">
+                <label class="subject-photo-upload">
+                  <%= form.file_field :photo, accept: "image/jpeg,image/png,image/webp" %>
+                  <% if subject[:photo_url].present? %>
+                    <span class="subject-photo-tile" style="background-image: url('<%= subject[:photo_url] %>')">
+                      <span class="subject-upload-overlay"><%= render "shared/icon", name: :upload, class: "icon-svg" %></span>
+                    </span>
+                  <% else %>
+                    <span class="subject-photo-tile subject-photo-tile-empty">
+                      <%= render "shared/icon", name: :upload, class: "icon-svg" %>
+                    </span>
+                  <% end %>
+                  <span class="subject-photo-upload-copy">
+                    <strong>Trocar foto</strong>
+                    <small>JPG, PNG ou WEBP ate 2 MB.</small>
+                  </span>
+                </label>
+
+                <div>
+                  <p class="eyebrow">Editando materia</p>
+                  <h2><%= subject[:name] %></h2>
+                  <p class="muted"><%= subject[:goal_label] %> - <%= subject[:hours_label] %></p>
+                </div>
+              </div>
+
+              <div class="subject-editor-grid">
+                <label>
+                  <span>Nome</span>
+                  <%= form.text_field :name, value: subject[:name], maxlength: 50, required: true %>
+                </label>
+
+                <label>
+                  <span>Descricao</span>
+                  <%= form.text_field :description, value: subject[:description], maxlength: 240, placeholder: "Resumo curto da materia" %>
+                </label>
+              </div>
+
+              <div class="subject-goal-fields">
+                <label>
+                  <span>Meta semanal</span>
+                  <%= form.number_field :goal_value, value: subject[:goal_value], min: 0, step: 0.25, placeholder: "Ex: 2" %>
+                </label>
+
+                <label>
+                  <span>Unidade</span>
+                  <%= form.select :goal_unit, [["Horas", "hours"], ["Minutos", "minutes"]], selected: subject[:goal_unit] %>
+                </label>
+              </div>
+
+              <%= form.submit "Salvar materia", class: "secondary-button full-width" %>
+            <% end %>
+          </details>
+        <% end %>
+      <% else %>
+        <div class="dashboard-panel empty-state subjects-empty">
+          <strong>Nenhuma materia cadastrada ainda.</strong>
+          <p>Abra o card de criacao acima para montar sua primeira area de foco.</p>
+        </div>
+      <% end %>
+    </div>
+  </section>
+</main>
