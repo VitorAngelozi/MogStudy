@@ -376,6 +376,7 @@ class DashboardController < AuthenticatedController
     user.study_sessions.where.not(ended_at: nil).pluck(:started_at).map(&:to_date).uniq.sort
   end
 
+  # Build the number of consecutive days in a streak based on the provided dates.
   def build_consecutive_day_streak(dates)
     dates = dates.sort
     streak = 0
