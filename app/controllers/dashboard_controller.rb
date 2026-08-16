@@ -401,6 +401,7 @@ class DashboardController < AuthenticatedController
     "#{hours}h#{remaining}"
   end
 
+  # Format a duration in seconds as a human-readable string in hours and minutes.
   def format_seconds_as_hours(seconds)
     format_minutes_as_hours(seconds.to_i / 60)
   end
