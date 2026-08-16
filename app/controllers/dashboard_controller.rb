@@ -391,6 +391,7 @@ class DashboardController < AuthenticatedController
     streak
   end
 
+  # Format a duration in minutes as a human-readable string in hours and minutes.
   def format_minutes_as_hours(minutes)
     hours = minutes.to_i / 60
     remaining = minutes.to_i % 60
