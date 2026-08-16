@@ -283,6 +283,8 @@ class DashboardController < AuthenticatedController
 
     return { state: "none", friendship: nil } unless friendship
 
+  # Determine the friendship state from the perspective of the viewer.
+  
     state = if friendship.status == Friendship::STATUS_ACCEPTED
       "accepted"
     elsif friendship.requester_id == viewer.id
@@ -292,6 +294,7 @@ class DashboardController < AuthenticatedController
     end
 
     { state: state, friendship: friendship }
+
   end
 
   def finished_seconds_today_for_current_subject(user, current_session, today)
