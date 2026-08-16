@@ -296,7 +296,8 @@ class DashboardController < AuthenticatedController
     { state: state, friendship: friendship }
 
   end
-
+  
+  # Calculate the total finished seconds for the current subject today, considering the current session and any completed sessions for the same subject.
   def finished_seconds_today_for_current_subject(user, current_session, today)
     scope = user.study_sessions.where.not(ended_at: nil).where(started_at: today.all_day)
     scope = if current_session.study_subject_id.present?
